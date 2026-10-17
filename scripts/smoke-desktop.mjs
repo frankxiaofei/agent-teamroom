@@ -1,7 +1,7 @@
 import { _electron as electron } from 'playwright';
-import { mkdtempSync, mkdirSync, realpathSync, rmdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, rmdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { delimiter, join, resolve } from 'node:path';
 import assert from 'node:assert/strict';
 const data=mkdtempSync(join(tmpdir(),'teamroom-electron-'));
 let application;
@@ -34,6 +34,13 @@ try {
     console.log('Desktop live Codex CLI and quota bridge verified.');
   }
   // Isolated fixture: exercise live UI routing without spending provider credits.
+  // CodexRun's constructor still discovers a CLI; discovery fixtures fail closed if executed.
+  const fixtureBin=join(data,'fixture-bin');mkdirSync(fixtureBin);
+  writeFileSync(join(fixtureBin,'codex'),'#!/bin/sh\nexit 1\n',{mode:0o700});
+  writeFileSync(join(fixtureBin,'codex.cmd'),'@exit /b 1\r\n');
+  const fixtureEntry=join(fixtureBin,'node_modules','@openai','codex','bin');mkdirSync(fixtureEntry,{recursive:true});
+  writeFileSync(join(fixtureEntry,'codex.js'),'throw new Error("Discovery-only test fixture must never execute");');
+  await application.evaluate((_electron,prefix)=>{process.env.PATH=prefix+(process.env.PATH||'');},fixtureBin+delimiter);
   await application.evaluate((_electron, modules) => {
     const require = process.getBuiltinModule('module').createRequire(modules.service);
     const { Teamroom } = require(modules.service);
