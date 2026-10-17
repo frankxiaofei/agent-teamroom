@@ -39,6 +39,22 @@ body{margin:0}
 #root .workspace-field{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
 #root .workspace-field input{min-width:140px;flex:1;border:1px solid var(--g-line);background:var(--g-bg);border-radius:7px;padding:8px;color:var(--g-text);font:inherit;font-size:12px}
 #root .boot{padding:40px}
+#root .group-toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px}
+#root .group-toolbar small{font-size:11px;color:var(--g-soft)}
+#root .group-toolbar button[aria-pressed=true]{background:var(--g-warn)}
+#root .collaboration-card{background:var(--g-panel);border:1px solid var(--g-line);border-radius:12px;padding:16px;margin:12px 0;font-size:12px;overflow-wrap:anywhere}
+#root .collaboration-card p{white-space:pre-wrap;margin:10px 0;line-height:1.7}
+#root .collaboration-card small{color:var(--g-soft)}
+#root .collaboration-card .g-actions{flex-wrap:wrap}
+#root .discussion-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#root .discussion-question{font-size:14px}
+#root .discussion-post{background:var(--g-bg);padding:12px;border-radius:8px;margin:10px 0}
+#root .discussion-post.summary,#root .confirmed-decision{border-left:3px solid var(--g-green);padding-left:12px}
+#root .discussion-post.error{color:var(--g-danger)}
+#root .discussion-controls label{display:block;margin:12px 0 7px}
+#root .discussion-controls textarea{display:block;box-sizing:border-box;width:100%;min-height:65px;margin-top:6px;padding:8px;border:1px solid var(--g-line);border-radius:8px;font:inherit;background:var(--g-bg);color:var(--g-text)}
+#root .reporting-settings{margin-top:18px}
+#root .reporting-settings input[type=number],#root .reporting-settings input[type=time]{max-width:110px;padding:5px;font:inherit}
 #root button{cursor:pointer}
 #root button:disabled{cursor:default}
 @media(max-width:850px){#root .g-shell{grid-template-columns:128px minmax(0,1fr)}#root .g-members{display:none}}

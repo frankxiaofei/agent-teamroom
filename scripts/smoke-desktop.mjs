@@ -11,6 +11,7 @@ try {
   application=await electron.launch({args:['.'],env});
   const page=await application.firstWindow();const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.getByRole('heading',{name:'Agent 工作群',exact:true}).waitFor();
+  await page.evaluate(async()=>{const state=await window.teamroom.snapshot();await window.teamroom.reporting({...state.reporting,notifications:false});});
   assert.equal(await page.evaluate(()=>typeof window.require),'undefined');
   assert.equal(await page.evaluate(()=>typeof window.process),'undefined');
   await page.getByRole('textbox',{name:'群消息',exact:true}).fill('@Codex @Claude Code 验证群聊派发与成果汇报');
@@ -23,11 +24,41 @@ try {
   await page.getByRole('alert').waitFor();assert.equal((await page.evaluate(()=>window.teamroom.snapshot())).tasks.length,before.tasks.length);
   await page.getByRole('textbox',{name:'群消息',exact:true}).fill('');
   await page.getByRole('button',{name:'Agent 工作群',exact:true}).click();
+  await page.getByRole('button',{name:'立即汇报',exact:true}).click();
+  await page.waitForFunction(async()=>(await window.teamroom.snapshot()).reports.some(r=>r.kind==='manual'));
+  await page.getByRole('button',{name:'发起讨论',exact:true}).click();
+  await page.getByRole('textbox',{name:'群消息',exact:true}).fill('@Codex @Claude Code 登录状态应该存在哪里？');
+  await page.getByRole('button',{name:'发送讨论问题',exact:true}).click();
+  await page.waitForFunction(async()=>(await window.teamroom.snapshot()).discussions.some(d=>d.status==='needs_decision'));
+  const discussion=await page.evaluate(async()=>(await window.teamroom.snapshot()).discussions[0]);
+  assert.equal(discussion.participants.length,2);assert.equal(discussion.posts.length,3);
+  assert.equal((await page.evaluate(()=>window.teamroom.snapshot())).tasks.length,before.tasks.length);
+  const card=page.locator('[id="discussion-'+discussion.id+'"]');
+  await card.getByRole('textbox',{name:'讨论结论 '+discussion.id,exact:true}).fill('先核对跨设备退出需求，再决定 Redis 方案');
+  await page.evaluate(()=>window.teamroom.report());
+  assert.equal(await card.getByRole('textbox',{name:'讨论结论 '+discussion.id,exact:true}).inputValue(),'先核对跨设备退出需求，再决定 Redis 方案');
+  await card.getByRole('button',{name:'确认结论，结束讨论',exact:true}).click();
+  await page.waitForFunction(async()=>(await window.teamroom.snapshot()).discussions[0].status==='resolved');
+  await page.getByRole('button',{name:'返回任务沟通',exact:true}).click();
+  await page.getByRole('button',{name:'连接设置',exact:true}).click();
+  await page.getByRole('spinbutton',{name:'汇报间隔',exact:true}).fill('15');
+  await page.getByRole('button',{name:'保存汇报设置',exact:true}).click();
+  await page.waitForFunction(async()=>(await window.teamroom.snapshot()).reporting.intervalMinutes===15);
+  await application.evaluate(({BrowserWindow},id)=>BrowserWindow.getAllWindows()[0].webContents.send('room:focus',{discussionId:id}),discussion.id);
+  await page.getByRole('heading',{name:'Agent 工作群',exact:true}).waitFor();
+  await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
+  assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false);
+  await application.evaluate(({app})=>app.emit('second-instance',{},[],process.cwd()));
+  assert.equal(await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),true);
   mkdirSync('docs/images',{recursive:true});await page.screenshot({path:'docs/images/teamroom-desktop.png'});
+  await card.scrollIntoViewIfNeeded();await page.screenshot({path:'docs/images/teamroom-discussion.png'});
   assert.deepEqual(errors,[]);await application.close();application=undefined;
   application=await electron.launch({args:['.'],env});
   const reopened=await application.firstWindow();await reopened.getByRole('heading',{name:'Agent 工作群',exact:true}).waitFor();
   assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).tasks.filter(t=>t.prompt==='验证群聊派发与成果汇报').length,2);
+  assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).discussions[0].status,'resolved');
+  assert.ok((await reopened.evaluate(()=>window.teamroom.snapshot())).reports.some(r=>r.kind==='manual'));
+  assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).reporting.intervalMinutes,15);
   if(process.argv.includes('--live-account')) {
     const account=await reopened.evaluate(async workspace=>{await window.teamroom.settings({mode:'live',workspace,writable:false});await window.teamroom.quota();const state=await window.teamroom.snapshot();return {mode:state.settings.mode,available:state.availability.find(a=>a.agentId==='codex')?.available,quotaKeys:Object.keys(state.quota.data)};},process.cwd());
     assert.equal(account.mode,'live');assert.equal(account.available,true);assert.ok(account.quotaKeys.includes('rateLimits'));
@@ -85,5 +116,5 @@ try {
   await reopened.getByRole('button',{name:'切换工作目录',exact:true}).click();
   await reopened.waitForFunction(async workspace=>(await window.teamroom.snapshot()).settings.workspace===workspace,realpathSync(data));
   await reopened.evaluate(()=>window.teamroom.settings({mode:'demo',workspace:'',writable:false}));
-  console.log('Desktop smoke passed: isolated preload, multi-mention dispatch, recipient guard, SQLite restart persistence, directory selection/cancel/recovery (live execution stubbed).');
+  console.log('Desktop smoke passed: isolated preload, dispatch, reporting, group discussion/decision, stable drafts, tray activation, restart persistence, directory recovery (live execution stubbed).');
 } finally {await application?.close();}

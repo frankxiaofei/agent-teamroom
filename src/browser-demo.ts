@@ -1,12 +1,13 @@
 import { AGENTS } from '../core/agents.js';
 import { parseMentions } from '../core/mentions.js';
-import type { Bridge, Snapshot, Task } from '../core/types.js';
+import { DEFAULT_REPORTING, type Bridge, type Discussion, type Snapshot, type Task } from '../core/types.js';
 
 export function browserDemo(): Bridge {
   const key = 'teamroom-browser-demo-v1';
   let value: Snapshot;
   try { value = JSON.parse(localStorage.getItem(key) || 'null'); } catch { value = null as unknown as Snapshot; }
-  if (!value?.messages || !value.tasks) value = { settings: { mode: 'demo', workspace: '', writable: false }, tasks: [], approvals: [], availability: AGENTS.map(a => ({ agentId: a.id, available: a.id !== 'workbuddy', reason: a.id === 'workbuddy' ? '后续接入' : '浏览器演示' })), messages: [{ id: crypto.randomUUID(), role: 'system', agentId: null, text: '欢迎来到 Teamroom 浏览器演示。@ 员工即可体验群聊；真实 Codex 和 SQLite 记录请运行桌面版本。', source: 'demo', at: Date.now() }] };
+  if (!value?.messages || !value.tasks) value = { settings: { mode: 'demo', workspace: '', writable: false }, tasks: [], approvals: [], availability: AGENTS.map(a => ({ agentId: a.id, available: a.id !== 'workbuddy', reason: a.id === 'workbuddy' ? '后续接入' : '浏览器演示' })), messages: [{ id: crypto.randomUUID(), role: 'system', agentId: null, text: '欢迎来到 Teamroom 浏览器演示。@ 员工即可体验群聊；真实 Codex 和 SQLite 记录请运行桌面版本。', source: 'demo', at: Date.now() }], reporting: DEFAULT_REPORTING, reports: [], discussions: [] };
+  value.reporting ||= DEFAULT_REPORTING; value.reports ||= []; value.discussions ||= [];
   const listeners = new Set<(s: Snapshot) => void>();
   const availability = () => AGENTS.map(agent => ({ agentId: agent.id, available: agent.id !== 'workbuddy', reason: agent.id === 'workbuddy' ? '后续接入' : '浏览器演示' }));
   const publish = () => { localStorage.setItem(key, JSON.stringify(value)); listeners.forEach(fn => fn(structuredClone(value))); };
@@ -34,6 +35,19 @@ export function browserDemo(): Bridge {
     async accept(id) { const task = value.tasks.find(t => t.id === id); if (!task || task.status !== 'awaiting_review') throw new Error('任务当前不可验收。'); task.status = 'accepted'; publish(); },
     async approve() { throw new Error('浏览器演示没有真实审批请求。'); },
     async quota() { throw new Error('浏览器演示无法查询账户额度。'); },
+    async reporting(settings) { value.reporting = settings; publish(); },
+    async report() { const now = Date.now(), id = crypto.randomUUID(); const text = '【浏览器演示】即时工作汇报\n交付 ' + value.tasks.filter(t => t.status === 'awaiting_review').length + ' 项；验收 ' + value.tasks.filter(t => t.status === 'accepted').length + ' 项。\n依据浏览器演示记录，完整定时汇报请使用桌面版。'; value.reports.push({ id, kind: 'manual', source: 'demo', from: now, to: now, text, taskIds: value.tasks.map(t => t.id) }); value.messages.push({ id: 'report-' + id, role: 'system', agentId: null, source: 'demo', at: now, text, reportId: id }); publish(); },
+    async discuss(input) {
+      if (value.discussions.some(d => d.id === input.id)) return;
+      if (!input.question.trim() || !input.participants.length || input.participants.length > 2 || input.participants.some(id => !AGENTS.some(a => a.id === id && a.id !== 'workbuddy'))) throw new Error('请选择最多两位可用员工并填写问题。');
+      const now = Date.now(); const d: Discussion = { ...input, initiator: null, source: 'demo', status: 'needs_decision', round: 1, posts: input.participants.map(agentId => ({ id: crypto.randomUUID(), agentId, kind: 'reply', round: 1, at: now, text: '【浏览器演示】建议先确认需求和证据，没有调用真实工具。' })), createdAt: now, updatedAt: now, workspace: '' };
+      value.discussions.push(d); value.messages.push({ id: 'discussion-' + d.id, role: 'user', agentId: null, source: 'demo', at: now, text: d.question, discussionId: d.id }); publish();
+    },
+    async discussionReply(id, text) { const d = value.discussions.find(d => d.id === id); if (!d || d.status !== 'needs_decision' || !text.trim()) throw new Error('讨论当前不可回复。'); d.posts.push({ id: crypto.randomUUID(), agentId: null, kind: 'boss', text, round: d.round, at: Date.now() }); publish(); },
+    async discussionRound() { throw new Error('完整讨论轮次请使用桌面版本；这里仅展示演示卡片。'); },
+    async discussionResolve(id, decision, resume) { const d = value.discussions.find(d => d.id === id); if (!d || d.status !== 'needs_decision' || !decision.trim()) throw new Error('请填写结论。'); if (resume) throw new Error('浏览器演示不执行原任务，请使用桌面版本。'); d.decision = decision; d.status = 'resolved'; publish(); },
+    async discussionCancel() { throw new Error('浏览器演示没有正在运行的讨论。'); },
+    onFocus() { return () => {}; },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   };
 }

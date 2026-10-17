@@ -10,3 +10,7 @@
 - Do not commit `.env`, auth files, user databases, absolute machine-specific paths or raw provider stderr.
 - Run `npm run verify` and `npm run smoke:desktop` before pushing changes to desktop behavior.
 - The supported live integration in v0.1 is Codex. Other mascots represent planned adapters and demo capabilities.
+- Scheduled reports are derived locally from persisted status events. Never invoke models for periodic reporting or count delivery as acceptance.
+- Discussion consultations use fresh read-only sessions and decline all privilege requests. At most two invited agents and three explicitly requested rounds.
+- An agent may request discussion only at a completed tool turn. Paused work resumes only after the boss explicitly confirms a conclusion and continuation.
+- Persist report deduplication and interrupted discussions. Restart must never replay consultations or paused work automatically.
