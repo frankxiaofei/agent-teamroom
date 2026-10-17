@@ -47,7 +47,7 @@ export function App() {
   const recipients = mentionNames(draft);
   const broadcast = mentionsAll(draft);
   const picks = AGENTS.filter(a => a.name.toLowerCase().startsWith(query.toLowerCase()) || a.nick.startsWith(query));
-  const showAll = !query || ['all', '所有人', '全体'].some(token => token.startsWith(query.toLowerCase()));
+  const showAll = composeMode !== 'discussion' && (!query || ['all', '所有人', '全体'].some(token => token.startsWith(query.toLowerCase())));
   function mention(id: AgentId) {
     setSelected(id); setView('group');
     if (!available(id)) { setError(snapshot!.availability.find(a => a.agentId === id)?.reason || '工具不可用'); return; }
@@ -94,6 +94,7 @@ export function App() {
     setSending(true); setError('');
     try {
       const parsed = parseMentions(draft);
+      if (composeMode === 'discussion' && parsed.all) throw new Error('讨论最多邀请两位员工，不能使用 @all。');
       const current = (await bridge.snapshot()).settings;
       if (current.mode === 'live' && !current.workspace && !await chooseWorkspace()) return;
       if (composeMode === 'discussion') {

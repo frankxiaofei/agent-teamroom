@@ -2,14 +2,14 @@
 
 状态在验证后更新；GitHub issue 对应编号通过仓库链接追踪。每项只有通过验收才完成。
 
-## M2.1 · 主动汇报（当前批次）
+## M2.1 · 主动汇报（已完成，合入 main）
 
 - [x] T23：持久化任务状态事件，交付与验收分别统计；历史未知不推算。
 - [x] T24：默认 30 分钟有变化才汇报、北京时间 18:00 日报、手动立即汇报和设置入口。
 - [x] T25：汇报消息与发送去重；休眠/退出后合并补报；演示/真实隔离。
 - [x] T26：托盘驻留、即时桌面提醒、点击定位；通知失败不丢群记录。
 
-## M2.2 · 群内讨论（当前批次）
+## M2.2 · 群内讨论（已完成，合入 main）
 
 - [x] T27：老板从群里发起问题，选择最多两位已接入员工；问题卡片关联任务与回复。
 - [x] T28：Agent 在轮次结束时提出结构化讨论请求，暂停原任务并定向邀请可用员工。
@@ -17,10 +17,16 @@
 - [x] T30：老板补充意见、提交结论、明确确认继续原任务；取消与失败保留证据。
 - [x] T31：重启不重放、模式隔离、讨论汇报、队列不死锁、桌面与协议夹具验证。
 
+## M2.3 · 本机发现与 Grok（实验性，当前批次）
+
+- [x] T32：Grok stdio 适配器；initialize/authenticate、session new/load、prompt 流式、审批拒绝、取消与未登录错误；4 项协议夹具测试。
+- [x] T33：本机命令发现与显式 @all；只有 Codex/Grok 有执行器，其他命令只显示已安装；显式不可用 @ 仍阻止整条发送；添加 UI 与测试。
+- [ ] T34：真实 Grok CLI/账户验证；记录版本、登录方式、极小只读任务与失败边界，完成前不得把 Grok 列为受支持适配器。
+
 ## M1 · 本地群聊基础
 
 - [x] T01：Electron/React/TypeScript 项目；桌面可启动，保留工作群样式。 [#1](https://github.com/frankxiaofei/agent-teamroom/issues/1)
-- [x] T02：带产品名牌的 6 位卡通员工；@ 菜单和成员点击插入。 [#2](https://github.com/frankxiaofei/agent-teamroom/issues/2)
+- [x] T02：带产品名牌的基础 6 位卡通员工；M2.3 增加 Grok 字标占位；@ 菜单和成员点击插入。 [#2](https://github.com/frankxiaofei/agent-teamroom/issues/2)
 - [x] T03：多人提及、去重、未知名称与整条发送预检查；无隐式广播。 [#3](https://github.com/frankxiaofei/agent-teamroom/issues/3)
 - [x] T04：SQLite 群消息/任务/设置；事务与消息 ID 幂等；演示/真实隔离。 [#4](https://github.com/frankxiaofei/agent-teamroom/issues/4)
 - [x] T05：自动测试、桌面 smoke、重启持久化；GitHub CI。 [#5](https://github.com/frankxiaofei/agent-teamroom/issues/5)

@@ -25,16 +25,18 @@ React 工作群 ── 窄类型 IPC ── Electron 主进程
                                  │
                          Teamroom 任务服务
                           │             │
-                     SQLite Store    CodexRun
-                                        │ stdio JSON-RPC
-                                  本地 Codex CLI
+                     SQLite Store   Runner factory
+                                      │       │
+                                 CodexRun   GrokRun (experimental)
+                                      │ stdio JSON-RPC
+                                本地 CLI
 ```
 
 浏览器演示使用单独的 LocalStorage bridge，不接触主进程、SQLite 或真实工具。桌面使用自定义 `teamroom://app` 静态资源协议、sandbox、contextIsolation 与 CSP。禁止新窗口、外部导航、通用 IPC 和任意文件访问接口。
 
 ## 接口
 
-Bridge 只有 snapshot、send、settings、chooseWorkspace、cancel、accept、approve、quota 和 subscribe。主进程校验主窗口/frame 来源、消息 ID、提及、工具可用性、已有目录和布尔权限。
+Bridge 只有 snapshot、send、settings、chooseWorkspace、cancel、accept、approve、quota、reporting、report、discuss、discussionReply、discussionRound、discussionResolve、discussionCancel、onFocus 和 subscribe。主进程校验主窗口/frame 来源、消息 ID、提及、工具可用性、已有目录和布尔权限。
 
 Message 保存群内发言；Task 保存一位接收人的独立执行；Approval 保存当前进程有效的单次审批。一个消息可以产生多个 Task。SQLite 事务确保发送前检查失败时不会部分落库；相同 message ID 重试不重派。
 
@@ -45,6 +47,14 @@ Message 保存群内发言；Task 保存一位接收人的独立执行；Approva
 通过本机实际 CLI 的 schema 验证协议，v0.1 在 Codex CLI 0.144.6 上开发验证。线程及 turn 事件对应官方 [App Server](https://learn.chatgpt.com/docs/app-server)。prompt 通过 JSON stdin 传递，shell=false。Windows npm shim 转为 Node 直接执行官方 CLI 入口，避免拼接 .cmd 命令。
 
 权限初始为 `read-only`、`on-request`、用户审批。已支持 commandExecution/fileChange 单次 accept/decline；其他 server request 返回不支持。终态 completed 才进入待验收；不根据进程退出或“完成”文本判断成功。
+
+## 本机发现与 Grok（实验性）
+
+真实模式通过 `where`/`which` 检测 Codex、Grok、Claude Code、OpenCode、Cursor、Cline、WorkBuddy 命令。只有存在执行适配器的 Codex/Grok 会显示可用；编辑器命令（如 `cursor`）只表示已安装，不能当作 Agent 执行器。命令存在不等于登录、模型和额度可用，实际以请求为准。检测结果不写数据库，设置变更后重新探测。
+
+Grok 适配器沿用 stdio JSON-RPC 边界：initialize/authenticate、session/new 或 session/load、session/prompt、流式 `session/update`、权限请求单次批准/拒绝、取消。prompt 通过 JSON stdin，不进入命令行参数；认证复用 CLI 自己的 `cached_token`/`xai.api_key`，Teamroom 不读取或保存凭据。当前只有协议夹具验证，真实 Grok CLI 尚未验证，因此在文档和 UI 中必须标为实验性。
+
+`@all` 的展开在主进程完成：只选择当前 `availability` 中可用的员工；显式 @ 到不可用员工仍在写入前阻止整条消息。展开后每个接收人仍创建独立 Task，保留发送时的目录和写入权限，不形成隐式广播或部分派发。
 
 ## 持久化与失败
 

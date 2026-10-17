@@ -2,14 +2,14 @@
 
 ## 当前阶段
 
-源码开发预览。可以面向开发者介绍设计与已实现的 Codex 接入，但不能声称六种工具都已真实接通，不能宣称已有稳定安装包。本文是待发布草稿，不是已发布记录。
+源码开发预览。可以面向开发者介绍设计与已实现的 Codex 接入，但不能声称所有工具都已真实接通，不能宣称已有稳定安装包。本文是待发布草稿，不是已发布记录。
 
 ## 推荐素材
 
 - 仓库：https://github.com/frankxiaofei/agent-teamroom
 - 实际桌面截图：`docs/images/teamroom-desktop.png`
 - 演示顺序：群里输入 @ → 选员工 → 发任务 → 流式回复 → 处理审批 → 验收 → 重启看到记录。
-- 演示视频必须持续标明演示/真实模式；不要混剪造成六工具均已真实工作的印象。
+- 演示视频必须持续标明演示/真实模式；不要混剪造成所有工具均已真实工作的印象。
 
 ## 中文介绍串文草稿
 
@@ -17,7 +17,7 @@
 
 2. 最想解决的是来回切工具、找聊天、等结果。现在把沟通、进展、审批和成果验收集中到一个群里，旁边能看员工状态，另有日报和工作记录。
 
-3. 第一版是源码开发预览。真实接入目前支持 Codex App Server；其他工具先提供演示，Claude Code、OpenCode、Cursor、Cline 按公开路线图推进，WorkBuddy 还要确认接口能力。
+3. 第一版是源码开发预览。真实接入目前支持 Codex App Server；Grok 是实验性适配器，只有协议夹具证据，尚未完成真实 CLI 验证；其他工具先提供演示，Claude Code、OpenCode、Cursor、Cline 按公开路线图推进，WorkBuddy 还要确认接口能力。
 
 4. 默认只读。任务、聊天和设置保存在本地 SQLite；工具完成和你的验收分开记。重启后不会悄悄把没完成的任务重新执行。
 
@@ -29,7 +29,7 @@ Building Teamroom: a desktop group chat for AI agents.
 
 @ an agent to assign work. Progress, approvals & deliveries stay in the group.
 
-Source preview: live Codex; other adapters planned. Local SQLite, read-only by default.
+Source preview: live Codex; Grok experimental (fixtures only); other adapters planned. Local SQLite, read-only by default.
 
 https://github.com/frankxiaofei/agent-teamroom
 
