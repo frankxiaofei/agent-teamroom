@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-main/
 .data/
+.smoke-data/
 .env
 .env.*
 !.env.example

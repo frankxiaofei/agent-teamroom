@@ -3,12 +3,16 @@ import { mkdtempSync, mkdirSync, realpathSync, rmdirSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import assert from 'node:assert/strict';
-const data=mkdtempSync(join(tmpdir(),'teamroom-electron-'));
+const data=process.env.TEAMROOM_SMOKE_DATA_DIR || mkdtempSync(join(tmpdir(),'teamroom-electron-'));
+mkdirSync(data,{recursive:true});
 let application;
 const env={...process.env,TEAMROOM_DATA_DIR:data};
 delete env.ELECTRON_RUN_AS_NODE;
+// Only for restricted CI/headless hosts; normal desktop runs keep Electron's sandbox enabled.
+const args=['.'];
+if (process.env.TEAMROOM_SMOKE_NO_SANDBOX === '1') args.push('--no-sandbox','--disable-gpu');
 try {
-  application=await electron.launch({args:['.'],env});
+  application=await electron.launch({args,env});
   const page=await application.firstWindow();const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.getByRole('heading',{name:'Agent 工作群',exact:true}).waitFor();
   await page.evaluate(async()=>{const state=await window.teamroom.snapshot();await window.teamroom.reporting({...state.reporting,notifications:false});});
@@ -53,7 +57,7 @@ try {
   mkdirSync('docs/images',{recursive:true});await page.screenshot({path:'docs/images/teamroom-desktop.png'});
   await card.scrollIntoViewIfNeeded();await page.screenshot({path:'docs/images/teamroom-discussion.png'});
   assert.deepEqual(errors,[]);await application.close();application=undefined;
-  application=await electron.launch({args:['.'],env});
+  application=await electron.launch({args,env});
   const reopened=await application.firstWindow();await reopened.getByRole('heading',{name:'Agent 工作群',exact:true}).waitFor();
   assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).tasks.filter(t=>t.prompt==='验证群聊派发与成果汇报').length,2);
   assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).discussions[0].status,'resolved');

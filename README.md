@@ -93,6 +93,8 @@ npm start
 ```sh
 npm run verify
 npm run smoke:desktop
+# 受限/无交互桌面主机：改用工作区数据目录并关闭 Chromium sandbox
+# TEAMROOM_SMOKE_NO_SANDBOX=1 TEAMROOM_SMOKE_DATA_DIR=.smoke-data npm run smoke:desktop
 node scripts/smoke-codex.mjs
 # 可选：会调用已登录 Codex 的一次极小推理请求
 node scripts/smoke-codex.mjs --inference

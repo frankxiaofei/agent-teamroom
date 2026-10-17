@@ -31,7 +31,8 @@ GitHub CI 会独立验证 Ubuntu/Windows 的测试、构建和桌面烟测，具
 ## 2026-10-17 合并后复验（M2.1/M2.2 + Grok/@all）
 
 - `npm run verify`：45 项测试通过，TypeScript 与 Vite 构建通过。覆盖 M1/M2、M2.1/M2.2、Grok 协议夹具、@all 和安装发现。
-- `npm run smoke:desktop`：本次未能复跑。启动时本机已有 3 个 Electron 进程，Playwright 报 `Process failed to launch`，不是断言失败；因此不把本次结果描述为桌面烟测通过。
+- `npm run smoke:desktop`：通过（受限主机）。直接启动时 Electron 在当前非交互桌面会话中因 Chromium sandbox 失败；使用 `TEAMROOM_SMOKE_NO_SANDBOX=1` 和 `TEAMROOM_SMOKE_DATA_DIR=<workspace>/.smoke-data` 后，真实 Electron 烟测通过，覆盖群聊路由、立即汇报、两人演示讨论、结论草稿、汇报设置、通知定位、托盘隐藏/再次打开、SQLite 重启恢复和目录恢复（真实执行仍为夹具）。这不等于常规桌面环境也无需该开关。
+- `docs/images/teamroom-desktop.png` 与 `teamroom-discussion.png` 已由本次烟测重新生成，显示 7 位员工（含 Grok 占位）与讨论卡片。
 - Grok：仅 4 项协议夹具测试（流式、审批拒绝、未登录、取消）。本机 PATH 未发现 `grok` 命令，未执行真实 Grok CLI/账户验证；T34 保持开放。
 - `@all`：自动测试覆盖“只发给当前可用员工、显式不可用 @ 仍阻止整条发送”；演示模式由 LocalStorage bridge 验证。没有把测试夹具说成真实多工具验证。
 - 合并后代码在 main 的工作树中运行；本轮 Node 24.19.0、Electron 44.8.0。历史记录中的 Node 22.16.0 是前一时点。
