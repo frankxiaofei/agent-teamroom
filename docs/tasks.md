@@ -8,7 +8,7 @@
 - [x] T02：带产品名牌的 6 位卡通员工；@ 菜单和成员点击插入。 [#2](https://github.com/frankxiaofei/agent-teamroom/issues/2)
 - [x] T03：多人提及、去重、未知名称与整条发送预检查；无隐式广播。 [#3](https://github.com/frankxiaofei/agent-teamroom/issues/3)
 - [x] T04：SQLite 群消息/任务/设置；事务与消息 ID 幂等；演示/真实隔离。 [#4](https://github.com/frankxiaofei/agent-teamroom/issues/4)
-- [ ] T05：自动测试、桌面 smoke、重启持久化；GitHub CI。 [#5](https://github.com/frankxiaofei/agent-teamroom/issues/5)
+- [x] T05：自动测试、桌面 smoke、重启持久化；GitHub CI。 [#5](https://github.com/frankxiaofei/agent-teamroom/issues/5)
 
 ## M2 · Codex 真实闭环
 

@@ -20,3 +20,10 @@
 - 开发预览：M1/M2 源码与测试可公开，明确只有 Codex 真实适配器。
 - 面向尝鲜开发者的 X 介绍：源码链接、截图、能力边界与运行步骤齐备，使用“building in public / 开发预览”措辞。
 - 面向普通用户的正式推荐：至少两种真实工具完成本机验证，Windows 分发与恢复通过；禁止用演示多工具替代真实接入证据。
+
+## 2026-10-17 交付状态
+
+- [M1](https://github.com/frankxiaofei/agent-teamroom/milestone/1)：完成，本机桌面与 Windows/Ubuntu CI 均通过。
+- [M2](https://github.com/frankxiaofei/agent-teamroom/milestone/2)：源码开发预览完成；真实账户、极小推理与协议夹具证据分别记录。
+- M3–M5：未开始，继续按任务清单推进。
+- M6：T21 素材准备完成；T22 尚未发布，保持开放。
