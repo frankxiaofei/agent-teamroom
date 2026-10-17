@@ -63,8 +63,13 @@ try {
   await reopened.evaluate(()=>window.teamroom.settings({mode:'live',workspace:'',writable:false}));
   await application.evaluate(({dialog},workspace)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[workspace]});},project);
   await reopened.getByRole('button',{name:'发送到群里',exact:true}).click();
-  await reopened.waitForFunction(()=>document.querySelector('.g-feed').textContent.includes('【测试夹具】目录选择后发送成功'));
+  await reopened.waitForFunction(()=>!document.querySelector('.send').disabled);
+  const dispatch=await reopened.evaluate(()=>window.teamroom.snapshot());
+  assert.equal(dispatch.settings.workspace,realpathSync(project),'first send must save the selected directory');
+  assert.equal(dispatch.tasks.filter(t=>t.source==='live').length,1,'first send must dispatch once; alert: '+await reopened.getByRole('alert').allTextContents());
+  await reopened.waitForFunction(async()=>{const state=await window.teamroom.snapshot();return state.tasks.some(t=>t.source==='live'&&['awaiting_review','failed'].includes(t.status));});
   const sent=await reopened.evaluate(()=>window.teamroom.snapshot());
+  assert.equal(sent.tasks.find(t=>t.source==='live').result,'【测试夹具】目录选择后发送成功');
   assert.equal(sent.settings.workspace,realpathSync(project));assert.equal(sent.settings.writable,false);
   assert.equal(sent.tasks.filter(t=>t.source==='live').length,1);
   assert.equal(sent.tasks.find(t=>t.source==='live').workspace,realpathSync(project));
