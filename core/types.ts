@@ -1,4 +1,4 @@
-export type AgentId = 'claude' | 'codex' | 'opencode' | 'cursor' | 'cline' | 'workbuddy';
+export type AgentId = 'claude' | 'codex' | 'opencode' | 'cursor' | 'cline' | 'workbuddy' | 'grok';
 export type Mode = 'demo' | 'live';
 export type TaskStatus = 'queued' | 'running' | 'waiting_approval' | 'awaiting_review' | 'accepted' | 'failed' | 'cancelled' | 'interrupted';
 export interface Agent { id: AgentId; name: string; nick: string; job: string; avatar: number; }

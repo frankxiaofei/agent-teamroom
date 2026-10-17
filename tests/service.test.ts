@@ -39,6 +39,32 @@ test('fanout is explicit, idempotent and independently inspectable', async () =>
   room.accept(tasks[0].id); assert.equal(room.snapshot().tasks.find(t=>t.id===tasks[0].id)!.status,'accepted');
   room.close(); store.close();
 });
+test('@all reaches every available employee and still rejects an explicit unavailable mention', async () => {
+  const store = new Store(':memory:'); const room = new Teamroom(store, 10);
+  const id = randomUUID();
+  room.send({ id, text: '@all 同步今天的进度' });
+  await wait(() => room.snapshot().tasks.filter(t => t.messageId === id).every(t => t.status === 'awaiting_review'));
+  const tasks = room.snapshot().tasks.filter(t => t.messageId === id);
+  const available = room.availability().filter(item => item.available).map(item => item.agentId).sort();
+  assert.deepEqual(tasks.map(t => t.agentId).sort(), available);
+  assert.equal(tasks.some(t => t.agentId === 'workbuddy'), false);
+  assert.ok(tasks.some(t => t.agentId === 'grok'));
+  const before = room.snapshot();
+  assert.throws(() => room.send({ id: randomUUID(), text: '@all @WorkBuddy 同步' }), /WorkBuddy/);
+  assert.equal(room.snapshot().tasks.length, before.tasks.length);
+  room.close(); store.close();
+});
+test('live availability follows installed commands and only enables agents with runners', () => {
+  const store = new Store(':memory:'); const room = new Teamroom(store, 10, name => ['claude', 'cursor', 'grok'].includes(name));
+  store.saveSettings({ mode: 'live', workspace: '', writable: false });
+  const availability = room.availability();
+  assert.equal(availability.find(item => item.agentId === 'claude')?.available, false);
+  assert.match(availability.find(item => item.agentId === 'claude')!.reason, /已检测到 claude/);
+  assert.match(availability.find(item => item.agentId === 'cursor')!.reason, /尚未发现可执行的 Agent 命令/);
+  assert.equal(availability.find(item => item.agentId === 'grok')?.available, true);
+  assert.equal(availability.find(item => item.agentId === 'codex')?.available, false);
+  room.close(); store.close();
+});
 test('unavailable member blocks the entire send before persistence', () => {
   const store = new Store(':memory:'); const room = new Teamroom(store); const before=room.snapshot();
   assert.throws(()=>room.send({id:randomUUID(),text:'@Codex @WorkBuddy 检查模块'}),/WorkBuddy/);

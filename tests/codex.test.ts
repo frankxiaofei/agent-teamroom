@@ -10,6 +10,11 @@ test('real process transport handles streaming, approval and authoritative final
   await run.run(task,{mode:'live',workspace:process.cwd(),writable:false},{text:value=>text=value,activity:()=>{},thread:id=>thread=id,approval:(_id,_kind,description,answer)=>{assert.match(description,/echo fixture/);approved=true;answer(true);}});
   assert.equal(text,'fixture-approved');assert.equal(thread,'fixture-thread');assert.ok(approved);
 });
+test('a thread locked by another writer starts a fresh session',async()=>{
+  let thread='';
+  await new CodexRun(command).run({...task,threadId:'busy'},{mode:'live',workspace:process.cwd(),writable:false},{text:()=>{},activity:()=>{},thread:id=>thread=id,approval:(_id,_kind,_description,answer)=>answer(true)});
+  assert.equal(thread,'fixture-thread');
+});
 test('existing session is resumed and decline is forwarded once',async()=>{
   let text='',thread='';await new CodexRun(command).run({...task,threadId:'existing'},{mode:'live',workspace:process.cwd(),writable:false},{text:value=>text=value,activity:()=>{},thread:id=>thread=id,approval:(_id,_kind,_description,answer)=>answer(false)});
   assert.equal(thread,'existing');assert.equal(text,'fixture-declined');

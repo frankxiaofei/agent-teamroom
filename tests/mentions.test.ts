@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { executionPrompt, parseMentions, mentionNames } from '../core/mentions.js';
+import { executionPrompt, parseMentions, mentionNames, mentionsAll, mentionQuery, completeAllMention } from '../core/mentions.js';
 test('routes a spaced product name and deduplicates recipients', () => {
-  assert.deepEqual(parseMentions('@Claude Code @Codex @codex 检查登录模块'), { recipients: ['claude', 'codex'], prompt: '检查登录模块' });
+  assert.deepEqual(parseMentions('@Claude Code @Codex @codex 检查登录模块'), { recipients: ['claude', 'codex'], prompt: '检查登录模块', all: false });
 });
 test('does not route email addresses or a longer product-like name', () => {
   assert.deepEqual(mentionNames('hello@Codex and @CodexExtra'), []);
@@ -16,6 +16,20 @@ test('requires explicit recipient, body and bounded input', () => {
   assert.throws(() => parseMentions('@Codex ' + 'x'.repeat(8000)), /8000/);
 });
 test('preserves shell metacharacters as prompt text', () => { assert.equal(parseMentions('@Codex echo `secret`; $(whoami)').prompt, 'echo `secret`; $(whoami)'); });
+test('recognizes short names, Grok and @all without matching longer tokens', () => {
+  assert.deepEqual(parseMentions('@claude @opencode @cursor @cline @grok 看一下'), { recipients: ['claude', 'opencode', 'cursor', 'cline', 'grok'], prompt: '看一下', all: false });
+  assert.deepEqual(parseMentions('@Grok Bot @所有人 汇总进展'), { recipients: ['grok'], prompt: '汇总进展', all: true });
+  assert.equal(mentionsAll('@ALL 开会'), true);
+  assert.deepEqual(mentionNames('@all @Codex 开会'), ['codex']);
+  assert.deepEqual(mentionNames('@allen @allocation'), []);
+  assert.throws(() => parseMentions('@allen 检查'), /无法识别/);
+  assert.deepEqual(completeAllMention('@all', 4), { text: '@all ', caret: 5 });
+  assert.deepEqual(completeAllMention('请@全体看进度', 4), { text: '请 @all 看进度', caret: 7 });
+  assert.deepEqual(completeAllMention('@ALL开会', 4), { text: '@all 开会', caret: 5 });
+  assert.equal(completeAllMention('@allen', 6), null);
+  assert.equal(completeAllMention('@allocation 开始', 11), null);
+  assert.deepEqual(mentionQuery('进度@al', 5), { query: 'al', start: 2 });
+});
 test('execution retains original recipient assignments instead of merging their work', () => {
   const original='@Codex 负责修复，@Claude Code 负责审查';
   const prompt=executionPrompt('codex',original);

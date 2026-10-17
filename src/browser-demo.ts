@@ -8,13 +8,19 @@ export function browserDemo(): Bridge {
   try { value = JSON.parse(localStorage.getItem(key) || 'null'); } catch { value = null as unknown as Snapshot; }
   if (!value?.messages || !value.tasks) value = { settings: { mode: 'demo', workspace: '', writable: false }, tasks: [], approvals: [], availability: AGENTS.map(a => ({ agentId: a.id, available: a.id !== 'workbuddy', reason: a.id === 'workbuddy' ? '后续接入' : '浏览器演示' })), messages: [{ id: crypto.randomUUID(), role: 'system', agentId: null, text: '欢迎来到 Teamroom 浏览器演示。@ 员工即可体验群聊；真实 Codex 和 SQLite 记录请运行桌面版本。', source: 'demo', at: Date.now() }] };
   const listeners = new Set<(s: Snapshot) => void>();
+  const availability = () => AGENTS.map(agent => ({ agentId: agent.id, available: agent.id !== 'workbuddy', reason: agent.id === 'workbuddy' ? '后续接入' : '浏览器演示' }));
   const publish = () => { localStorage.setItem(key, JSON.stringify(value)); listeners.forEach(fn => fn(structuredClone(value))); };
   return {
-    async snapshot() { return structuredClone(value); },
+    async snapshot() { return structuredClone({ ...value, availability: availability() }); },
     async send(input) {
       if (value.messages.some(m => m.id === input.id)) return;
-      const { recipients, prompt } = parseMentions(input.text);
-      if (recipients.includes('workbuddy')) throw new Error('WorkBuddy 尚未接入。');
+      const parsed = parseMentions(input.text);
+      const open = new Set(availability().filter(item => item.available).map(item => item.agentId));
+      const blocked = parsed.recipients.filter(id => !open.has(id));
+      if (blocked.length) throw new Error(blocked.map(id => AGENTS.find(agent => agent.id === id)!.name + ' 尚未接入。').join('\n'));
+      const recipients = [...new Set([...(parsed.all ? open : []), ...parsed.recipients])];
+      if (!recipients.length) throw new Error('当前没有可接收任务的员工。');
+      const { prompt } = parsed;
       const now = Date.now();
       value.messages.push({ id: input.id, role: 'user', agentId: null, text: input.text, at: now, source: 'demo' });
       recipients.forEach(agentId => {

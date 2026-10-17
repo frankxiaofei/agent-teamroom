@@ -6,4 +6,5 @@ export const AGENTS: Agent[] = [
   { id: 'cursor', name: 'Cursor', nick: '小紫', job: '界面与体验', avatar: 3 },
   { id: 'cline', name: 'Cline', nick: '小蓝', job: '检查与验证', avatar: 4 },
   { id: 'workbuddy', name: 'WorkBuddy', nick: '阿布', job: '办公与协作', avatar: 5 },
+  { id: 'grok', name: 'Grok', nick: '小石', job: '推理与构建', avatar: 6 },
 ];

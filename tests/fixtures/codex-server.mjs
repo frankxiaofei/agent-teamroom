@@ -8,6 +8,7 @@ createInterface({input:process.stdin}).on('line',line=>{
     send({method:'turn/completed',params:{turn:{id:turnId,status:'completed'}}});return;
   }
   if(m.method==='initialize')send({id:m.id,result:{}});
+  if(m.method==='thread/resume' && m.params.threadId==='busy'){send({id:m.id,error:{message:'thread busy already has an active writer'}});return;}
   if(m.method==='thread/start'||m.method==='thread/resume'){threadId=m.params.threadId||threadId;send({id:m.id,result:{thread:{id:threadId}}});}
   if(m.method==='account/rateLimits/read')send({id:m.id,result:{rateLimits:{primary:{usedPercent:35,windowDurationMins:300,resetsAt:1800000000}}}});
   if(m.method==='turn/start'){

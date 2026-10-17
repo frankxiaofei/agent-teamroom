@@ -4,19 +4,21 @@ import { realpathSync, statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { AGENTS } from './agents.js';
 import { executionPrompt, parseMentions } from './mentions.js';
-import { CodexRun, codexCommand, readCodexQuota } from './codex.js';
+import { CodexRun, readCodexQuota } from './codex.js';
+import { GrokRun } from './grok.js';
+import { detectInstalls, type CommandProbe, type ToolInstall } from './installs.js';
 import { Store } from './store.js';
-import type { Approval, Availability, Message, Quota, SendInput, Settings, Snapshot, Task } from './types.js';
+import type { AgentId, Approval, Availability, Message, Quota, SendInput, Settings, Snapshot, Task } from './types.js';
 
 export class Teamroom extends EventEmitter {
   private approvals = new Map<string, Approval & { answer: (allow: boolean) => void }>();
   private active?: Task;
-  private runner?: CodexRun;
+  private runner?: { cancel(): Promise<void>; close(): void };
   private abort?: AbortController;
   private closing = false;
   private quotaData?: Quota;
-  private codexInstalled?: boolean;
-  constructor(readonly store: Store, private demoDelay = 650) {
+  private installs?: ToolInstall[];
+  constructor(readonly store: Store, private demoDelay = 650, private probe?: CommandProbe) {
     super();
     if (!store.messages().length) this.seed();
   }
@@ -29,13 +31,16 @@ export class Teamroom extends EventEmitter {
   }
   availability(): Availability[] {
     const settings = this.store.settings();
-    return AGENTS.map(a => {
-      if (a.id === 'workbuddy') return { agentId: a.id, available: false, reason: '后续接入，当前无法接收任务' };
-      if (settings.mode === 'demo') return { agentId: a.id, available: true, reason: '演示适配器' };
-      if (a.id !== 'codex') return { agentId: a.id, available: false, reason: '真实适配器在后续里程碑交付' };
-      if (this.codexInstalled === undefined) { try { codexCommand(); this.codexInstalled = true; } catch { this.codexInstalled = false; } }
-      return { agentId: a.id, available: this.codexInstalled, reason: this.codexInstalled ? '检测到 CLI；登录与模型权限以实际请求为准' : '未检测到 Codex CLI，请在外部终端安装并登录' };
+    const installs = settings.mode === 'live' ? this.installReports() : [];
+    return AGENTS.map(agent => {
+      if (settings.mode === 'demo') return agent.id === 'workbuddy' ? { agentId: agent.id, available: false, reason: '后续接入，当前无法接收任务' } : { agentId: agent.id, available: true, reason: '演示适配器' };
+      const report = installs.find(item => item.agentId === agent.id)!;
+      return { agentId: agent.id, available: report.executable, reason: report.executable ? report.detail + '；登录与模型权限以实际请求为准' : report.detail };
     });
+  }
+  private installReports() {
+    if (!this.installs) this.installs = detectInstalls(this.probe);
+    return this.installs;
   }
   snapshot(): Snapshot {
     return { settings: this.store.settings(), messages: this.store.messages(), tasks: this.store.tasks(), approvals: [...this.approvals.values()].map(({ answer: _, ...a }) => a), availability: this.availability(), quota: this.quotaData };
@@ -44,7 +49,7 @@ export class Teamroom extends EventEmitter {
   settings(value: Settings) {
     if (!value || !['demo', 'live'].includes(value.mode) || typeof value.workspace !== 'string' || typeof value.writable !== 'boolean') throw new Error('设置格式无效。');
     const workspace = value.workspace ? this.workspace(value.workspace) : '';
-    this.codexInstalled = undefined;
+    this.installs = undefined;
     this.store.saveSettings({ mode: value.mode, workspace, writable: value.writable }); this.publish();
   }
   private workspace(value: string) {
@@ -57,15 +62,18 @@ export class Teamroom extends EventEmitter {
   send(input: SendInput) {
     if (!input || typeof input.id !== 'string' || !/^[A-Za-z0-9-]{8,80}$/.test(input.id)) throw new Error('消息 ID 无效。');
     if (this.store.hasMessage(input.id)) return;
-    const { recipients, prompt } = parseMentions(input.text);
+    const { recipients, prompt, all } = parseMentions(input.text);
     const settings = this.store.settings();
-    const unavailable = this.availability().filter(a => recipients.includes(a.agentId) && !a.available);
-    if (unavailable.length) throw new Error(unavailable.map(a => AGENTS.find(x => x.id === a.agentId)!.name + '：' + a.reason).join('\n'));
+    const available = this.availability();
+    const unavailable = available.filter(item => recipients.includes(item.agentId) && !item.available);
+    if (unavailable.length) throw new Error(unavailable.map(item => AGENTS.find(agent => agent.id === item.agentId)!.name + '：' + item.reason).join('\n'));
+    const targets = [...new Set<AgentId>([...(all ? available.filter(item => item.available).map(item => item.agentId) : []), ...recipients])];
+    if (!targets.length) throw new Error('当前没有可接收任务的员工。');
     const workspace = settings.mode === 'live' ? this.workspace(settings.workspace) : settings.workspace;
     const at = Date.now();
     this.store.transaction(() => {
       this.store.message({ id: input.id, agentId: null, role: 'user', text: input.text.trim(), at, source: settings.mode });
-      for (const agentId of recipients) {
+      for (const agentId of targets) {
         const previous = this.store.tasks().filter(t => t.source === 'live' && t.agentId === agentId && t.workspace === workspace && t.threadId).at(-1);
         this.store.task({ id: randomUUID(), messageId: input.id, agentId, prompt, workspace, writable: settings.writable, status: 'queued', createdAt: at, lastEventAt: at, result: '', source: settings.mode, threadId: previous?.threadId });
       }
@@ -89,7 +97,9 @@ export class Teamroom extends EventEmitter {
       } else {
         // Re-read predecessor after queueing: a prior task may only now have created its thread.
         task.threadId = this.store.tasks().filter(t => t.id !== task.id && t.source === 'live' && t.workspace === task.workspace && t.agentId === task.agentId && t.threadId).at(-1)?.threadId;
-        const run = this.runner = new CodexRun();
+        const Run = task.agentId === 'codex' ? CodexRun : task.agentId === 'grok' ? GrokRun : undefined;
+        if (!Run) throw new Error(AGENTS.find(agent => agent.id === task.agentId)!.name + ' 已识别，执行适配尚未接入。');
+        const run = this.runner = new Run();
         const original = this.store.messageById(task.messageId)?.text || task.prompt;
         await run.run({ ...task, prompt: executionPrompt(task.agentId, original) }, { mode: 'live', workspace: task.workspace, writable: task.writable }, {
           text,

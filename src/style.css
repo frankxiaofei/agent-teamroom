@@ -37,7 +37,7 @@
 #root .g-message-head time{font-size:11px;color:var(--g-soft)}
 #root .mine .g-message-head{justify-content:flex-end}
 #root .g-avatar{width:42px;height:42px;flex:0 0 42px;border-radius:12px;background-image:var(--g-atlas);background-size:300% 200%;background-repeat:no-repeat}
-#root .g-avatar.a0{background-position:0 0}#root .g-avatar.a1{background-position:50% 0}#root .g-avatar.a2{background-position:100% 0}#root .g-avatar.a3{background-position:0 100%}#root .g-avatar.a4{background-position:50% 100%}#root .g-avatar.a5{background-position:100% 100%}
+#root .g-avatar.a0{background-position:0 0}#root .g-avatar.a1{background-position:50% 0}#root .g-avatar.a2{background-position:100% 0}#root .g-avatar.a3{background-position:0 100%}#root .g-avatar.a4{background-position:50% 100%}#root .g-avatar.a5{background-position:100% 100%}#root .g-avatar.a6{background-image:none;background:#17191c;color:#f4f1ea;display:grid;place-items:center;font-weight:700}#root .g-avatar.a6::before{content:'G'}#root .g-avatar.all{background-image:none;background:#28593e;color:#fff;display:grid;place-items:center;font-weight:700}#root .g-avatar.all::before{content:'@'}
 #root .g-boss{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;background:var(--g-green);color:var(--g-on);border-radius:12px;font-weight:600;font-size:12px}
 #root .g-bubble{background:var(--g-panel);border:1px solid var(--g-line);border-radius:0 12px 12px 12px;padding:12px 14px;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
 #root .mine .g-bubble{background:var(--g-wash);border-color:transparent;border-radius:12px 0 12px 12px}

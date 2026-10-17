@@ -1,7 +1,7 @@
 import { spawn, execFileSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { createInterface } from 'node:readline';
+import { createInterface, type Interface } from 'node:readline';
 import type { Task, Settings } from './types.js';
 
 export interface Command { file: string; args: string[]; }
@@ -28,10 +28,11 @@ export class RpcClient {
   onEvent: (method: string, params: any, id?: number | string) => void = () => {};
   onClose: (error: Error) => void = () => {};
   private closed = false;
+  private lines: Interface;
   constructor(command: Command) {
     this.process = spawn(command.file, command.args, { windowsHide: true, shell: false, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
-    const lines = createInterface({ input: this.process.stdout });
-    lines.on('line', line => {
+    this.lines = createInterface({ input: this.process.stdout });
+    this.lines.on('line', line => {
       let message: any;
       try { message = JSON.parse(line); } catch { this.stop(new Error('Codex 返回了无法解析的协议消息。')); return; }
       if (message.id !== undefined && !message.method) {
@@ -61,7 +62,16 @@ export class RpcClient {
     if (this.closed) return;
     this.closed = true;
     for (const waiter of this.pending.values()) { clearTimeout(waiter.timer); waiter.reject(error); }
-    this.pending.clear(); this.onClose(error); this.process.kill();
+    this.pending.clear(); this.onClose(error); this.release();
+  }
+  private release() {
+    this.lines.close();
+    this.process.stdin.destroy();
+    this.process.stdout.destroy();
+    this.process.stderr.destroy();
+    const pid = this.process.pid;
+    this.process.kill();
+    if (process.platform === 'win32' && pid) spawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).unref();
   }
   close() { this.stop(new Error('Codex 连接已关闭。')); }
   async initialize() {
@@ -86,9 +96,6 @@ export class CodexRun {
   async run(task: Task, settings: Settings, events: RunEvents): Promise<void> {
     const rpc = this.rpc = new RpcClient(this.command);
     const texts = new Map<string, string>();
-    const done = new Promise<void>((resolve, reject) => { this.finish = error => error ? reject(error) : resolve(); });
-    // Attach a rejection handler immediately; a process can fail during initialization.
-    void done.catch(() => {});
     rpc.onClose = error => this.finish?.(error);
     rpc.onEvent = (method, p, id) => {
       if (id !== undefined) {
@@ -108,16 +115,34 @@ export class CodexRun {
         else this.finish?.(new Error(p.turn?.error?.message || (p.turn?.status === 'interrupted' ? '任务已中断。' : 'Codex 未完成本次任务。')));
       }
     };
-    try {
-      await rpc.initialize();
+    const busy = (error: unknown) => error instanceof Error && /active writer/i.test(error.message);
+    const execute = async (resumeId?: string) => {
+      const settled = new Promise<void>((resolve, reject) => { this.finish = error => error ? reject(error) : resolve(); });
+      void settled.catch(() => {});
       const params = { cwd: task.workspace, sandbox: settings.writable ? 'workspace-write' : 'read-only', approvalPolicy: 'on-request', approvalsReviewer: 'user' };
-      const result = await rpc.request(task.threadId ? 'thread/resume' : 'thread/start', task.threadId ? { ...params, threadId: task.threadId } : params);
+      let result;
+      try { result = await rpc.request(resumeId ? 'thread/resume' : 'thread/start', resumeId ? { ...params, threadId: resumeId } : params); }
+      catch (error) {
+        if (!resumeId || !busy(error)) throw error;
+        events.activity('上一段会话仍被占用，已开始新的对话');
+        result = await rpc.request('thread/start', params);
+      }
       this.threadId = result.thread.id; events.thread(this.threadId!);
       if (this.aborted) throw new Error('任务已取消。');
       const response = await rpc.request('turn/start', { threadId: this.threadId, input: [{ type: 'text', text: task.prompt }] });
       this.turnId = response.turn.id;
       if (this.aborted) await this.cancel();
-      await done;
+      await settled;
+    };
+    try {
+      await rpc.initialize();
+      try { await execute(task.threadId); }
+      catch (error) {
+        if (!task.threadId || this.aborted || !busy(error)) throw error;
+        events.activity('上一段会话仍被占用，已开始新的对话');
+        this.turnId = undefined;
+        await execute(undefined);
+      }
     } finally { this.finish = undefined; rpc.close(); }
   }
   async cancel() {
