@@ -17,7 +17,7 @@ body{margin:0}
 #root .g-task pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:0}
 #root .g-titlebar .mode-button{margin-left:auto;border:1px solid var(--g-line);border-radius:6px;background:var(--g-wash);color:var(--g-green);padding:4px 9px;font-size:11px}
 #root .g-titlebar .mode-button.live{background:var(--g-warn);color:var(--g-warn-text)}
-#root .g-mention-button,#root .send,#root .workspace-field button{display:inline-flex;align-items:center;gap:6px}
+#root .g-mention-button,#root .send,#root .workspace-button,#root .workspace-field button{display:inline-flex;align-items:center;gap:6px}
 #root .g-composer textarea{min-height:82px;height:90px}
 #root .composer-note{font-size:11px;color:var(--g-soft);margin-top:8px;overflow-wrap:anywhere}
 #root .source-label{font-size:11px;color:var(--g-soft)}

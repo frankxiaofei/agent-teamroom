@@ -1,7 +1,7 @@
 import { _electron as electron } from 'playwright';
-import { mkdtempSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import assert from 'node:assert/strict';
 const data=mkdtempSync(join(tmpdir(),'teamroom-electron-'));
 let application;
@@ -33,5 +33,45 @@ try {
     assert.equal(account.mode,'live');assert.equal(account.available,true);assert.ok(account.quotaKeys.includes('rateLimits'));
     console.log('Desktop live Codex CLI and quota bridge verified.');
   }
-  console.log('Desktop smoke passed: isolated preload, multi-mention dispatch, recipient guard, SQLite restart persistence.');
+  // Isolated fixture: exercise live UI routing without spending provider credits.
+  await application.evaluate((_electron, modules) => {
+    const require = process.getBuiltinModule('module').createRequire(modules.service);
+    const { Teamroom } = require(modules.service);
+    const { CodexRun } = require(modules.codex);
+    Teamroom.prototype.availability = () => [{ agentId: 'codex', available: true, reason: 'test fixture' }];
+    CodexRun.prototype.run = async (_task, _settings, hooks) => hooks.text('【测试夹具】目录选择后发送成功');
+  }, { service: resolve('dist-main/core/service.js'), codex: resolve('dist-main/core/codex.js') });
+  await reopened.evaluate(()=>window.teamroom.settings({mode:'live',workspace:'',writable:false}));
+  await application.evaluate(({dialog})=>{dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});});
+  const draft='@Codex 验证首次目录选择';
+  const liveBefore=await reopened.evaluate(()=>window.teamroom.snapshot());
+  await reopened.getByRole('textbox',{name:'群消息',exact:true}).fill(draft);
+  await reopened.getByRole('button',{name:'发送到群里',exact:true}).click();
+  await reopened.waitForFunction(()=>!document.querySelector('.send').disabled);
+  assert.equal(await reopened.getByRole('textbox',{name:'群消息',exact:true}).inputValue(),draft);
+  assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).tasks.length,liveBefore.tasks.length);
+  assert.equal(await reopened.getByRole('alert').count(),0);
+  const project=join(data,'project');mkdirSync(project);
+  await reopened.evaluate(workspace=>window.teamroom.settings({mode:'live',workspace,writable:false}),project);
+  rmdirSync(project);
+  await reopened.getByRole('button',{name:'发送到群里',exact:true}).click();
+  await reopened.getByRole('alert').waitFor();
+  assert.equal(await reopened.getByRole('alert').textContent(),'工作目录不存在或无法访问，请重新选择本地项目目录。');
+  assert.equal(await reopened.getByRole('textbox',{name:'群消息',exact:true}).inputValue(),draft);
+  assert.equal((await reopened.evaluate(()=>window.teamroom.snapshot())).tasks.length,liveBefore.tasks.length);
+  mkdirSync(project);
+  await reopened.evaluate(()=>window.teamroom.settings({mode:'live',workspace:'',writable:false}));
+  await application.evaluate(({dialog},workspace)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[workspace]});},project);
+  await reopened.getByRole('button',{name:'发送到群里',exact:true}).click();
+  await reopened.waitForFunction(()=>document.querySelector('.g-feed').textContent.includes('【测试夹具】目录选择后发送成功'));
+  const sent=await reopened.evaluate(()=>window.teamroom.snapshot());
+  assert.equal(sent.settings.workspace,realpathSync(project));assert.equal(sent.settings.writable,false);
+  assert.equal(sent.tasks.filter(t=>t.source==='live').length,1);
+  assert.equal(sent.tasks.find(t=>t.source==='live').workspace,realpathSync(project));
+  assert.equal(await reopened.getByRole('textbox',{name:'群消息',exact:true}).inputValue(),'');
+  await application.evaluate(({dialog},workspace)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[workspace]});},data);
+  await reopened.getByRole('button',{name:'切换工作目录',exact:true}).click();
+  await reopened.waitForFunction(async workspace=>(await window.teamroom.snapshot()).settings.workspace===workspace,realpathSync(data));
+  await reopened.evaluate(()=>window.teamroom.settings({mode:'demo',workspace:'',writable:false}));
+  console.log('Desktop smoke passed: isolated preload, multi-mention dispatch, recipient guard, SQLite restart persistence, directory selection/cancel/recovery (live execution stubbed).');
 } finally {await application?.close();}

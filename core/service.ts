@@ -48,8 +48,11 @@ export class Teamroom extends EventEmitter {
     this.store.saveSettings({ mode: value.mode, workspace, writable: value.writable }); this.publish();
   }
   private workspace(value: string) {
-    if (!isAbsolute(value) || !statSync(value).isDirectory()) throw new Error('请选择已存在的本地项目目录。');
-    return realpathSync(value);
+    if (!value) throw new Error('请先选择工作目录，再发送真实任务。');
+    try {
+      if (isAbsolute(value) && statSync(value).isDirectory()) return realpathSync(value);
+    } catch { /* Missing or inaccessible directories need the same recovery action. */ }
+    throw new Error('工作目录不存在或无法访问，请重新选择本地项目目录。');
   }
   send(input: SendInput) {
     if (!input || typeof input.id !== 'string' || !/^[A-Za-z0-9-]{8,80}$/.test(input.id)) throw new Error('消息 ID 无效。');
