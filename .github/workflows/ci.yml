@@ -1,0 +1,30 @@
+name: Verify Teamroom
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+      - name: Desktop smoke (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run smoke:desktop
+      - name: Desktop smoke (Windows)
+        if: runner.os == 'Windows'
+        run: npm run smoke:desktop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-smoke-${{ matrix.os }}
+          path: docs/images/teamroom-desktop.png
+          if-no-files-found: ignore

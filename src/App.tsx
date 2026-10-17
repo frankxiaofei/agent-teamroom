@@ -1,0 +1,83 @@
+import { useEffect, useRef, useState } from 'react';
+import { AtSign, MessageSquare, NotebookPen, ListTodo, Wallet, Settings as SettingsIcon, Send, FolderOpen } from 'lucide-react';
+import { AGENTS } from '../core/agents.js';
+import { mentionNames } from '../core/mentions.js';
+import type { AgentId, Bridge, Message, Settings, Snapshot, Task, TaskStatus } from '../core/types.js';
+import { browserDemo } from './browser-demo.js';
+declare global { interface Window { teamroom?: Bridge; } }
+const bridge = window.teamroom || browserDemo();
+const labels: Record<TaskStatus, string> = { queued: '排队中', running: '工作中', waiting_approval: '等你拍板', awaiting_review: '待验收', accepted: '已验收', failed: '执行失败', cancelled: '已取消', interrupted: '执行中断' };
+const ongoing = ['queued', 'running', 'waiting_approval'];
+const clock = (at: number) => new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' }).format(at);
+const day = (at: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+const duration = (task: Task) => task.startedAt ? Math.max(0, Math.round(((task.finishedAt || Date.now()) - task.startedAt) / 1000)) + ' 秒' : '尚未开始';
+function Avatar({ id, large = false }: { id: AgentId; large?: boolean }) { const agent = AGENTS.find(a => a.id === id)!; return <div className={'g-avatar a' + agent.avatar + (large ? ' large' : '')} role="img" aria-label={agent.name + ' 卡通形象与名牌'} />; }
+function Body({ text }: { text: string }) { return <>{text.split(/(@Claude Code|@Codex|@OpenCode|@Cursor|@Cline|@WorkBuddy)/gi).map((part, i) => part.startsWith('@') ? <mark key={i}>{part}</mark> : part)}</>; }
+type View = 'group' | 'reports' | 'records' | 'accounts' | 'settings';
+const navs = [{ id: 'group', label: 'Agent 工作群', Icon: MessageSquare }, { id: 'reports', label: '每日汇报', Icon: NotebookPen }, { id: 'records', label: '工作记录', Icon: ListTodo }, { id: 'accounts', label: '账户与额度', Icon: Wallet }, { id: 'settings', label: '连接设置', Icon: SettingsIcon }] as const;
+
+export function App() {
+  const [snapshot, setSnapshot] = useState<Snapshot>();
+  const [view, setView] = useState<View>('group');
+  const [selected, setSelected] = useState<AgentId>('codex');
+  const [draft, setDraft] = useState(() => localStorage.getItem('teamroom-draft') || '');
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [query, setQuery] = useState('');
+  const input = useRef<HTMLTextAreaElement>(null);
+  const feed = useRef<HTMLDivElement>(null);
+  useEffect(() => { const off = bridge.subscribe(setSnapshot); bridge.snapshot().then(setSnapshot).catch(e => setError(String(e.message))); return off; }, []);
+  useEffect(() => { localStorage.setItem('teamroom-draft', draft); }, [draft]);
+  useEffect(() => { feed.current?.scrollTo({ top: feed.current.scrollHeight, behavior: 'instant' }); }, [snapshot?.messages.map(m => m.id + m.text.length).join('|')]);
+  async function action(fn: () => Promise<unknown>) { setError(''); try { await fn(); } catch (e) { setError(e instanceof Error ? e.message : '操作失败'); } }
+  if (!snapshot) return <main className="boot">{error || '正在打开 Teamroom…'}</main>;
+  const settings = snapshot.settings;
+  const tasks = snapshot.tasks.filter(t => t.source === settings.mode);
+  const messages = snapshot.messages.filter(m => m.source === settings.mode);
+  const available = (id: AgentId) => snapshot.availability.find(a => a.agentId === id)?.available;
+  const agent = AGENTS.find(a => a.id === selected)!;
+  const own = tasks.filter(t => t.agentId === selected);
+  const latest = own.at(-1);
+  const today = tasks.filter(t => day(t.finishedAt || t.createdAt) === day(Date.now()));
+  const recipients = mentionNames(draft);
+  const picks = AGENTS.filter(a => a.name.toLowerCase().startsWith(query.toLowerCase()));
+  function mention(id: AgentId) {
+    setSelected(id); setView('group');
+    if (!available(id)) { setError(snapshot!.availability.find(a => a.agentId === id)?.reason || '工具不可用'); return; }
+    if (recipients.includes(id)) { setPicker(false); setTimeout(() => input.current?.focus(), 0); return; }
+    const name = AGENTS.find(a => a.id === id)!.name;
+    const caret = input.current?.selectionStart ?? draft.length;
+    const prefix = draft.slice(0, caret);
+    const match = prefix.match(/(^|\s)@([^@\n]*)$/);
+    const start = match && picker ? caret - match[2].length - 1 : caret;
+    const before = draft.slice(0, start);
+    const addition = (before && !/\s$/.test(before) ? ' ' : '') + '@' + name + ' ';
+    setDraft(before + addition + draft.slice(caret)); setPicker(false); setError('');
+    setTimeout(() => { input.current?.focus(); input.current?.setSelectionRange(before.length + addition.length, before.length + addition.length); }, 0);
+  }
+  async function send() {
+    if (sending) return;
+    setSending(true); setError('');
+    try { await bridge.send({ id: crypto.randomUUID(), text: draft }); setDraft(''); setPicker(false); }
+    catch (e) { setError(e instanceof Error ? e.message : '发送失败'); }
+    finally { setSending(false); input.current?.focus(); }
+  }
+  function TaskCard({ task }: { task: Task }) {
+    const approvals = snapshot!.approvals.filter(a => a.taskId === task.id);
+    return <section className="g-task"><div className="g-task-top"><strong>{AGENTS.find(a => a.id === task.agentId)!.name}</strong><span className={'g-state ' + (task.status === 'waiting_approval' || task.status === 'awaiting_review' ? 'wait' : '')}>{labels[task.status]}</span></div><p>{task.prompt}</p><p>{task.activity ? task.activity + ' · ' : ''}执行 {duration(task)} · 最近活动 {clock(task.lastEventAt)}{task.source === 'demo' ? ' · 演示' : ''}</p>{approvals.map(a => <div className="g-warning" key={a.id}><pre>{a.description}</pre><div className="g-actions"><button className="g-button primary" onClick={() => action(() => bridge.approve(a.id, true))}>仅批准本次</button><button className="g-button" onClick={() => action(() => bridge.approve(a.id, false))}>拒绝</button></div></div>)}<div className="g-actions">{task.status === 'awaiting_review' && <button className="g-button primary" onClick={() => action(() => bridge.accept(task.id))}>验收通过</button>}{ongoing.includes(task.status) && <button className="g-button" onClick={() => action(() => bridge.cancel(task.id))}>取消任务</button>}</div></section>;
+  }
+  function ChatMessage({ message }: { message: Message }) {
+    if (message.role === 'system') return <p className="system-message">{message.text}</p>;
+    const mine = message.role === 'user';
+    const related = tasks.filter(t => mine ? t.messageId === message.id : t.id === message.taskId && !messages.some(m => m.id === t.messageId));
+    return <article className={'g-message ' + (mine ? 'mine' : '')} data-sender={mine ? 'boss' : message.agentId}>{mine ? <div className="g-boss">我</div> : <Avatar id={message.agentId!} />}<div className="g-message-main"><div className="g-message-head"><strong>{mine ? '你 · 老板' : AGENTS.find(a => a.id === message.agentId)?.name}</strong><time>{clock(message.at)}</time><span className="source-label">{message.source === 'demo' ? '演示' : '真实'}</span></div><div className="g-bubble"><Body text={message.text} />{related.map(t => <TaskCard key={t.id} task={t} />)}</div></div></article>;
+  }
+  const headers: Record<View, [string, string]> = { group: ['Agent 工作群', '你与 6 位员工在这里沟通 · @ 指定员工接收任务'], reports: ['每日工作汇报', '先看成果，再看阻塞，最后决定下一步'], records: ['工作记录', '接收、执行结束和验收分别记录'], accounts: ['账户与额度', '数据带来源与更新时间，未知不会显示为欠费'], settings: ['连接设置', '演示与真实任务分别保存 · 默认只读权限'] };
+  return <div className="g-window"><div className="g-titlebar"><span className="g-brand"><b>T</b>TEAMROOM</span><span className="g-demo">{window.teamroom ? '本地桌面工作台' : '浏览器演示'}</span><button className={'mode-button ' + (settings.mode === 'live' ? 'live' : '')} onClick={() => setView('settings')}>{settings.mode === 'demo' ? '演示模式' : '真实模式 · Codex'}</button></div><div className="g-shell"><nav className="g-nav"><div className="g-org">我的 Agent 公司<small>老板与 6 位员工</small></div>{navs.map(({ id, label, Icon }) => <button className="g-navbutton" key={id} aria-pressed={view === id} onClick={() => { setView(id); setError(''); }}><Icon size={15} />{label}</button>)}<div className="g-navfoot">@ 谁，谁接收<br />成果在群内汇报</div></nav><main className="g-main"><header className="g-head"><div className="g-kicker">我的公司 / 工作空间</div><h2>{headers[view][0]}</h2><p className="g-sub">{headers[view][1]}</p></header><div className={'g-content ' + (view === 'group' ? 'chat-content' : 'page-content')}>{error && <div className="error-banner" role="alert">{error}</div>}{view === 'group' && <><div className="g-pinned"><span className="g-pinmark">助</span><div><strong>今日简报 · {today.filter(t => ['awaiting_review', 'accepted'].includes(t.status)).length} 项交付</strong><small>{tasks.filter(t => ongoing.includes(t.status)).length} 项处理中 · {tasks.filter(t => t.status === 'awaiting_review').length} 项待验收 · {snapshot.approvals.length} 项待审批{settings.mode === 'demo' ? ' · 演示数据' : ''}</small></div></div><div className="g-feed" ref={feed} aria-label="群聊消息">{messages.length ? messages.map(m => <ChatMessage key={m.id} message={m} />) : <p className="system-message">在下方 @Codex，开始第一项真实工作。</p>}</div><section className="g-composer"><div className="g-compose-top"><button className="g-mention-button" onClick={() => { setPicker(!picker); setQuery(''); input.current?.focus(); }}><AtSign size={15} />提及员工</button><span className="g-recipients">{recipients.length ? '接收人：' + recipients.map(id => AGENTS.find(a => a.id === id)!.name).join('、') : '尚未指定接收人'}</span></div>{picker && <div className="g-picker"><p className="g-picker-title">选择接收人，可 @ 多位员工</p><div className="g-picker-grid">{picks.map(a => <button className="g-pick" key={a.id} disabled={!available(a.id)} onClick={() => mention(a.id)}><Avatar id={a.id} /><span><strong>{a.name}</strong><small>{available(a.id) ? a.job : '尚未接入'}</small></span></button>)}</div></div>}<textarea ref={input} aria-label="群消息" placeholder="@Codex 检查登录模块，完成后把测试结果发到群里。" maxLength={8000} value={draft} onChange={e => { setDraft(e.target.value); setError(''); const prefix = e.target.value.slice(0, e.target.selectionStart); const match = prefix.match(/(?:^|\s)@([^@\n]*)$/); const candidates = match ? AGENTS.filter(a => a.name.toLowerCase().startsWith(match[1].toLowerCase())) : []; setPicker(Boolean(match && candidates.length)); setQuery(match?.[1] || ''); }} onKeyDown={e => { if (e.nativeEvent.isComposing) return; if (e.key === 'Escape') setPicker(false); if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void send(); } }} /><div className="g-compose-bottom"><span className="g-hint">Ctrl / ⌘ + Enter 发送 · 支持多个 @</span><button className="g-button primary send" disabled={sending} onClick={() => void send()}><Send size={14} />{sending ? '发送中…' : '发送到群里'}</button></div><p className="composer-note">{settings.mode === 'demo' ? '演示模式不会调用真实工具、修改文件或运行测试。' : '工作目录：' + (settings.workspace || '请在连接设置中选择') + ' · ' + (settings.writable ? '允许在目录内写入，必要操作由你审批' : '只读权限')}</p></section></>}{view === 'reports' && <article className="g-report"><div className="g-report-title"><Avatar id={selected} /><div><h3>{agent.name} · 今日工作汇报</h3><span className="g-state">{latest ? labels[latest.status] : '尚无任务'}</span></div></div><p>今日交付 {today.filter(t => t.agentId === selected && ['awaiting_review', 'accepted'].includes(t.status)).length} 项，验收 {today.filter(t => t.agentId === selected && t.status === 'accepted').length} 项。</p>{own.length ? own.slice(-10).reverse().map(t => <div key={t.id} className="report-task"><TaskCard task={t} /><p className="result-text">{t.result || '等待执行结果'}</p></div>) : <p className="g-hint">没有已记录的工作。这里只统计从 Teamroom 发起的任务。</p>}<button className="g-button primary" onClick={() => mention(selected)}>回群里 @{agent.name}</button></article>}{view === 'records' && <>{tasks.length ? [...tasks].reverse().map(t => <article className="record" key={t.id}><TaskCard task={t} />{['failed', 'interrupted'].includes(t.status) && <p>{t.result}</p>}</article>) : <p className="system-message">当前模式没有工作记录。</p>}</>}{view === 'accounts' && <><article className="g-account"><h3>Codex · 账户额度</h3><button className="g-button" onClick={() => action(() => bridge.quota())}>读取额度</button>{snapshot.quota ? <><pre className="quota-data">{JSON.stringify(snapshot.quota.data, null, 2)}</pre><small>{snapshot.quota.source} · {clock(snapshot.quota.updatedAt)} 更新</small></> : <p>尚未获取，不代表额度为零或账户欠费。</p>}</article><article className="g-account"><h3>其他工具</h3><p>余额、订阅和实际账单接口尚未接入。</p><small>Token 消耗与实际账单不能互相替代。</small></article></>}{view === 'settings' && <ConnectionSettings settings={settings} onSave={value => action(() => bridge.settings(value))} onError={setError} />}</div></main><aside className="g-members"><div className="g-members-head"><h3>群成员</h3><small>6 位员工</small></div><div className="g-roster">{AGENTS.map(a => { const current = tasks.filter(t => t.agentId === a.id).at(-1); return <button key={a.id} className="g-member" aria-pressed={selected === a.id} aria-label={(view === 'group' ? '在群里提及 ' : '查看 ') + a.name} onClick={() => view === 'group' ? mention(a.id) : setSelected(a.id)}><Avatar id={a.id} /><span><strong>{a.name}</strong><small>{a.nick} · {available(a.id) ? current ? labels[current.status] : '待命' : '尚未接入'}</small></span><span className="g-member-at">@</span></button>; })}</div><section className="g-profile"><Avatar id={selected} large /><p className="g-profile-name">{agent.name}</p><p className="g-profile-role">{agent.nick} · {agent.job}</p><div className="g-profile-label">正在做什么</div><p>{latest?.prompt || snapshot.availability.find(a => a.agentId === selected)?.reason}</p><div className="g-profile-numbers"><div><strong>{own.filter(t => ['accepted', 'awaiting_review'].includes(t.status)).length} 项</strong><small>累计交付</small></div><div><strong>{latest ? duration(latest) : '—'}</strong><small>最近任务执行</small></div></div><button className="g-button" onClick={() => setView('reports')}>查看今日日报</button><p className="g-note">原创概念形象 · 非官方吉祥物</p></section></aside></div></div>;
+}
+
+function ConnectionSettings({ settings, onSave, onError }: { settings: Settings; onSave: (value: Settings) => Promise<void>; onError: (error: string) => void }) {
+  const [value, setValue] = useState(settings);
+  return <section className="settings-panel"><h3>执行模式</h3><label><input type="radio" name="mode" checked={value.mode === 'demo'} onChange={() => setValue({ ...value, mode: 'demo' })} />演示模式：体验多员工群聊，不调用真实工具</label><label><input type="radio" name="mode" checked={value.mode === 'live'} onChange={() => setValue({ ...value, mode: 'live' })} />真实模式：当前支持 Codex CLI</label><h3>工作目录</h3><p className="g-hint">选择允许 Agent 读取或修改的项目目录。</p><div className="workspace-field"><input aria-label="工作目录" value={value.workspace} readOnly placeholder="尚未选择项目目录" /><button className="g-button" onClick={async () => { try { const path = await bridge.chooseWorkspace(); if (path) setValue({ ...value, workspace: path }); } catch (e) { onError((e as Error).message); } }}><FolderOpen size={15} />选择目录</button></div><label><input type="checkbox" checked={value.writable} onChange={e => setValue({ ...value, writable: e.target.checked })} />允许修改工作目录中的文件（默认关闭）</label><p className="g-hint">Codex 保留自身沙箱和审批。Teamroom 不读取或保存登录凭据，不会自动批准操作。</p><button className="g-button primary" onClick={() => void onSave(value)}>保存连接设置</button><h3>工具接入状态</h3><p>真实 Codex 适配器：已实现。Claude Code、OpenCode、Cursor、Cline：后续里程碑。WorkBuddy：后续评估公开接口。</p></section>;
+}

@@ -1,0 +1,45 @@
+#root{--g-atlas:url('/avatars.webp');min-height:100vh}
+body{margin:0}
+#root .g-window{border:0;border-radius:0;height:100vh;overflow:hidden}
+#root .g-titlebar{padding-right:20px;min-height:56px;height:56px}
+#root .g-shell{height:calc(100vh - 56px);min-height:0}
+#root .g-main{display:flex;flex-direction:column;min-height:0}
+#root .g-head{flex:none}
+#root .g-content{min-height:0;flex:1}
+#root .chat-content{display:flex;flex-direction:column}
+#root .g-feed{flex:1;min-height:80px;overflow:auto;margin-top:18px;padding:0 6px 12px 0;scrollbar-width:thin}
+#root .g-composer{margin-top:10px;flex:none}
+#root .page-content{overflow:auto}
+#root .g-members,#root .g-nav{overflow:auto;scrollbar-width:thin}
+#root .g-profile .large{width:110px;height:110px}
+#root .g-bubble{white-space:pre-wrap}
+#root .g-task p{overflow-wrap:anywhere}
+#root .g-task pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:0}
+#root .g-titlebar .mode-button{margin-left:auto;border:1px solid var(--g-line);border-radius:6px;background:var(--g-wash);color:var(--g-green);padding:4px 9px;font-size:11px}
+#root .g-titlebar .mode-button.live{background:var(--g-warn);color:var(--g-warn-text)}
+#root .g-mention-button,#root .send,#root .workspace-field button{display:inline-flex;align-items:center;gap:6px}
+#root .g-composer textarea{min-height:82px;height:90px}
+#root .composer-note{font-size:11px;color:var(--g-soft);margin-top:8px;overflow-wrap:anywhere}
+#root .source-label{font-size:11px;color:var(--g-soft)}
+#root .system-message{font-size:12px;color:var(--g-soft);text-align:center;padding:15px 10px;overflow-wrap:anywhere}
+#root .error-banner{padding:11px 13px;margin-bottom:12px;background:var(--g-warn);color:var(--g-danger);border-radius:8px;white-space:pre-wrap;font-size:12px;flex:none}
+#root .g-report .result-text{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;padding-top:10px}
+#root .report-task{padding-bottom:18px;margin-bottom:12px;border-bottom:1px solid var(--g-line)}
+#root .record{background:var(--g-panel);border:1px solid var(--g-line);border-radius:10px;padding:0 16px 15px;margin-bottom:12px}
+#root .record>.g-task{border-top:0}
+#root .record>p{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+#root .quota-data{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--g-bg);padding:12px;border-radius:8px}
+#root .g-account .g-button{margin-top:10px}
+#root .settings-panel{max-width:650px;background:var(--g-panel);border:1px solid var(--g-line);padding:22px;border-radius:12px}
+#root .settings-panel h3{margin:8px 0 13px}
+#root .settings-panel h3:not(:first-child){margin-top:25px}
+#root .settings-panel label{display:flex;gap:9px;align-items:flex-start;font-size:13px;margin:12px 0}
+#root .settings-panel input[type=checkbox],#root .settings-panel input[type=radio]{margin-top:5px;accent-color:var(--g-green)}
+#root .settings-panel p{font-size:12px;margin:12px 0;overflow-wrap:anywhere}
+#root .workspace-field{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+#root .workspace-field input{min-width:140px;flex:1;border:1px solid var(--g-line);background:var(--g-bg);border-radius:7px;padding:8px;color:var(--g-text);font:inherit;font-size:12px}
+#root .boot{padding:40px}
+#root button{cursor:pointer}
+#root button:disabled{cursor:default}
+@media(max-width:850px){#root .g-shell{grid-template-columns:128px minmax(0,1fr)}#root .g-members{display:none}}
+@media(max-width:550px){#root .g-window{height:auto;min-height:100vh;overflow:visible}#root .g-shell{height:auto;display:block}#root .g-feed{max-height:480px;min-height:180px}#root .g-nav{flex-direction:row}#root .g-titlebar{height:auto;padding-right:14px}#root .g-titlebar .mode-button{margin-left:0}#root .g-composer textarea{font-size:16px}}
