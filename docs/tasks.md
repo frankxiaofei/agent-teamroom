@@ -47,16 +47,16 @@
 
 ## M4 · ACP 与 WorkBuddy
 
-- [ ] T14：源码/协议测试完成（初始化、版本协商、提问、权限、恢复与取消）；本机 Agent CLI 缺失，真实验收待安装登录。 [#14](https://github.com/frankxiaofei/agent-teamroom/issues/14)
+- [ ] T14：源码/协议测试完成；0.3 补齐 Windows 原生入口，隔离安装的官方 CLI 握手通过，真实任务仍待登录验收。 [#14](https://github.com/frankxiaofei/agent-teamroom/issues/14)
 - [ ] T15：源码/协议测试完成，强制 auto-approve=false；本机 CLI 握手需认证，真实任务验收待登录。 [#15](https://github.com/frankxiaofei/agent-teamroom/issues/15)
-- [x] T16：WorkBuddy 官方接口能力调查与证据清单完成；公开 CodeBuddy CLI ACP 路线见本日交付文档。无现有桌面会话接管承诺，执行适配待本机 CLI 与权限验证。 [#16](https://github.com/frankxiaofei/agent-teamroom/issues/16)
+- [x] T16：WorkBuddy 官方接口调查完成；0.3 实现 CodeBuddy CLI ACP 实验性只读通道，握手与权限夹具通过，已登录任务待 T40 验收。无现有桌面会话接管承诺。 [#16](https://github.com/frankxiaofei/agent-teamroom/issues/16)
 
 ## M5 · 可日用与分发
 
 - [x] T17：北京时间日报、跨午夜任务、执行/等待时长和验收去重。 [#17](https://github.com/frankxiaofei/agent-teamroom/issues/17)
 - [x] T18：同类任务耗时中位数、样本量、失败与返工；不按 token 速度总排名。 [#18](https://github.com/frankxiaofei/agent-teamroom/issues/18)
 - [x] T19：人工账户别名和多工具关联去重、来源与更新时间、实际账单与估算区分；服务商实际账单未提供，明确显示未知。 [#19](https://github.com/frankxiaofei/agent-teamroom/issues/19)
-- [x] T20：Windows x64 未签名预览安装/便携包、恢复/备份、旧库迁移、包内清单、安装与同版本重装数据保留验证完成；跨版本程序升级、签名/自动更新另行验收。 [#20](https://github.com/frankxiaofei/agent-teamroom/issues/20)
+- [x] T20：Windows x64 未签名安装/便携包、恢复/备份、包内清单、安装与重装验证完成；0.3 补齐实际 0.2→0.3 安装升级与数据保留。签名自动升级仍待有效证书验收。 [#20](https://github.com/frankxiaofei/agent-teamroom/issues/20)
 
 ## M6 · X 推荐与社区反馈
 
@@ -66,3 +66,13 @@
 ## 2026-10-18 收口
 
 源码/协议测试、真实账户验收和安装包验证不是同一个完成状态。本日实现、验证命令与外部前置条件见 [delivery-2026-10-18.md](delivery-2026-10-18.md)。T13/T14/T15/T34 保留真实验收缺口，T20 以安装/同版本重装、旧库迁移和恢复实测收口；T22 未发布。
+
+## 0.3 · 继续收口
+
+- [x] T35：WorkBuddy 官方 CodeBuddy CLI 只读适配、权限白名单、发现、演示与协议夹具；本机 2.168.2 握手通过，真实账户任务仍待登录。
+- [x] T36：账单模板/CSV 导入、整数分、退款、归属、重复与冲突、备份恢复；不冒充实时服务商 API。
+- [x] T37：稳定/预览检查、限定本仓库下载页、签名更新下载/证书验证/确认/取消/执行保护；未签名不自动安装。
+- [x] T38：Windows 打包 workflow、artifact/checksum、签名 secrets 与稳定发布条件。正式签名端到端验收待有效证书，不用夹具替代。
+- [x] T39：schema 3 迁移前一致性副本，账单恢复校验；跨版本安装验证见最新 verification。
+- [ ] T40：Claude/Cursor/Cline/Grok/WorkBuddy 真实已登录任务与续接；原 T13/T14/T15/T34 继续保留证据缺口。工具登录由用户在各 CLI 完成。
+- [ ] T22：X 发布仍受浏览器连接超时影响，本批未发帖。

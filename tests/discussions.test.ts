@@ -18,7 +18,7 @@ test('boss discussion is separate from task dispatch, capped at two agents and t
   const store = new Store(':memory:'); const room = new Teamroom(store, 1); const before = store.tasks().length; const id = randomUUID();
   try {
     assert.throws(() => room.discuss({ id: randomUUID(), question: '方案？', participants: ['codex', 'claude', 'cline'] }), /最多两位/);
-    assert.throws(() => room.discuss({ id: randomUUID(), question: '方案？', participants: ['workbuddy'] }), /已接入/);
+    assert.throws(() => room.discuss({ id: randomUUID(), question: '方案？', participants: ['unknown' as AgentId] }), /选择最多两位/);
     room.discuss({ id, question: '登录状态存在哪里？', participants: ['codex', 'claude'] });
     await wait(() => store.discussions()[0]?.status === 'needs_decision');
     assert.equal(store.tasks().length, before); assert.equal(store.discussions()[0].posts.length, 3);

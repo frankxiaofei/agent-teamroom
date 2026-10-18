@@ -1,6 +1,10 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net, Menu, Tray, nativeImage, Notification, powerMonitor } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, net, Menu, Tray, nativeImage, Notification, powerMonitor, shell } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join, resolve, relative, isAbsolute } from 'node:path';
+import { dirname, join, resolve, relative, isAbsolute, basename } from 'node:path';
+import { openSync, readSync, closeSync, writeFileSync } from 'node:fs';
+import { BILL_TEMPLATE } from '../core/billing.js';
+import { checkUpdates, validReleasePage, type UpdateInfo } from '../core/updates.js';
+import {windowsSignature,trustedSignature,installSignedUpdate,loadUpdater} from '../core/signed-update.js';
 import { Teamroom } from '../core/service.js';
 import { Store } from '../core/store.js';
 import { restoreStore } from '../core/backup.js';
@@ -14,6 +18,11 @@ let window: BrowserWindow;
 let tray: Tray;
 let quitting = false;
 let maintenance = false;
+let updateInfo: UpdateInfo | undefined;
+let installingUpdate=false;
+let updateCancelToken:{cancel():void}|undefined;
+let updateCancelRequested=false;
+let updateQuitPending=false;
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 app.on('second-instance', () => { if (window && !window.isDestroyed()) { window.show(); if (window.isMinimized()) window.restore(); window.focus(); } });
 // Do not top-level-await readiness: Electron emits ready after the ESM entry finishes.
@@ -62,6 +71,38 @@ handle('room:approve', (id, allow) => service.approve(id, allow));
 handle('room:quota', () => service.quota());
 handle('room:account', value => service.account(value));
 handle('room:removeAccount', id => service.removeAccount(id));
+handle('room:removeBill', id=>service.removeBill(id));
+handle('room:importBills',async accountId=>{
+  maintenance=true;
+  try {
+    const selected=await dialog.showOpenDialog(window,{title:'导入账户账单 CSV',properties:['openFile'],filters:[{name:'UTF-8 CSV',extensions:['csv']}]});if(selected.canceled||!selected.filePaths[0])return null;
+    const fd=openSync(selected.filePaths[0],'r');let text: string;
+    try {const buffer=Buffer.alloc(1024*1024+1),size=readSync(fd,buffer,0,buffer.length,0);if(size>1024*1024)throw new Error('账单 CSV 不得超过 1 MiB。');text=new TextDecoder('utf-8',{fatal:true}).decode(buffer.subarray(0,size));}finally{closeSync(fd);}
+    return service.importBills(accountId,text,basename(selected.filePaths[0]).slice(0,200));
+  }finally{maintenance=false;}
+});
+handle('room:billTemplate',async()=>{
+  const selected=await dialog.showSaveDialog(window,{title:'保存账单导入模板',defaultPath:'teamroom-bills.csv',filters:[{name:'CSV',extensions:['csv']}]});if(selected.canceled||!selected.filePath)return false;
+  writeFileSync(selected.filePath,'\uFEFF'+BILL_TEMPLATE,{encoding:'utf8',flag:'wx'});return true;
+});
+handle('room:checkUpdates',async channel=>{updateInfo=undefined;const found=await checkUpdates(app.getVersion(),channel,(url,options)=>net.fetch(String(url),options));found.canAutoInstall=Boolean(app.isPackaged&&process.platform==='win32'&&!process.env.PORTABLE_EXECUTABLE_FILE&&trustedSignature(await windowsSignature(process.execPath)));updateInfo=found;return found;});
+handle('room:openUpdate',async()=>{if(!updateInfo?.available||!validReleasePage(updateInfo.url))throw new Error('请先检查到可用版本。');await shell.openExternal(updateInfo.url);});
+handle('room:cancelUpdate',()=>{updateCancelRequested=true;updateCancelToken?.cancel();});
+handle('room:installUpdate',async()=>{
+  if(installingUpdate)throw new Error('更新已在进行中。');
+  if(!app.isPackaged||process.platform!=='win32'||process.env.PORTABLE_EXECUTABLE_FILE||!updateInfo?.available||!updateInfo.canAutoInstall)throw new Error('自动安装仅用于已安装的可信签名 Windows 版本；请使用下载页手动更新。');
+  if(service.hasActiveWork())throw new Error('请先结束或取消任务和讨论，再安装更新。');
+  installingUpdate=true;updateCancelRequested=false;const expected=updateInfo.latest!.replace(/^v/,''),channel=updateInfo.channel;
+  try {
+    const confirmation=await dialog.showMessageBox(window,{type:'question',buttons:['取消','下载并安装'],defaultId:0,cancelId:0,message:'下载并安装 '+expected+'？',detail:'会校验安装包签名。安装将退出并重新打开 Teamroom，已有记录保留。'});if(confirmation.response!==1)return false;
+    if(updateCancelRequested)return false;
+    const autoUpdater=await loadUpdater();autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=false;autoUpdater.allowPrerelease=channel==='preview';autoUpdater.allowDowngrade=false;autoUpdater.logger=null;
+    if(!autoUpdater.listenerCount('error'))autoUpdater.on('error',()=>{if(updateQuitPending){updateQuitPending=false;maintenance=false;dialog.showErrorBox('更新安装未完成','请从官方下载页手动更新，现有工作记录保留。');}});
+    autoUpdater.setFeedURL({provider:'github',owner:'frankxiaofei',repo:'agent-teamroom'});
+    await installSignedUpdate({executable:process.execPath,expectedVersion:expected,updater:autoUpdater as any,signature:windowsSignature,canQuit:()=>{if(maintenance||service.hasActiveWork()||updateCancelRequested)return false;maintenance=true;updateQuitPending=true;return true;},onCancelToken:token=>{updateCancelToken=token;if(updateCancelRequested)token?.cancel();}});return true;
+  }catch(error){if(updateQuitPending){updateQuitPending=false;maintenance=false;}throw error;}
+  finally{installingUpdate=false;updateCancelToken=undefined;}
+});
 handle('room:backup', async () => {
   maintenance = true;
   try {

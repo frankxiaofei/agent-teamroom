@@ -15,7 +15,8 @@ export interface Report { id: string; source: Mode; kind: 'progress' | 'daily' |
 export interface DiscussionPost { id: string; agentId: AgentId | null; text: string; at: number; round: number; kind: 'reply' | 'summary' | 'boss' | 'error'; }
 export interface Discussion { id: string; source: Mode; taskId?: string; initiator: AgentId | null; question: string; participants: AgentId[]; workspace: string; status: 'queued' | 'running' | 'needs_decision' | 'resolved'; round: number; posts: DiscussionPost[]; createdAt: number; updatedAt: number; decision?: string; }
 export interface DiscussionInput { id: string; question: string; participants: AgentId[]; taskId?: string; }
-export interface Snapshot { settings: Settings; messages: Message[]; tasks: Task[]; approvals: Approval[]; availability: Availability[]; quota?: Quota; reporting: Reporting; reports: Report[]; discussions: Discussion[]; analytics?: import('./analytics.js').Analytics; accounts?: import('./accounts.js').Account[]; }
+export interface Bill { id: string; accountId: string; accountLabel: string; invoiceId: string; date: string; amountCents: number; currency: 'USD'|'CNY'; description: string; source: 'csv'; fileName: string; importedAt: number; }
+export interface Snapshot { settings: Settings; messages: Message[]; tasks: Task[]; approvals: Approval[]; availability: Availability[]; quota?: Quota; reporting: Reporting; reports: Report[]; discussions: Discussion[]; analytics?: import('./analytics.js').Analytics; accounts?: import('./accounts.js').Account[]; bills?: Bill[]; }
 export interface SendInput { id: string; text: string; category?: string; }
 export interface Usage { inputTokens: number; outputTokens: number; costUsd?: number; cumulative?: boolean; source: string; at: number; }
 export interface Bridge {
@@ -29,6 +30,13 @@ export interface Bridge {
   quota(): Promise<void>;
   account(value: import('./accounts.js').Account): Promise<void>;
   removeAccount(id: string): Promise<void>;
+  importBills(accountId: string): Promise<{added:number;duplicates:number}|null>;
+  billTemplate(): Promise<boolean>;
+  removeBill(id: string): Promise<void>;
+  checkUpdates(channel: 'stable'|'preview'): Promise<import('./updates.js').UpdateInfo>;
+  openUpdate(): Promise<void>;
+  installUpdate(): Promise<boolean>;
+  cancelUpdate(): Promise<void>;
   backup(): Promise<string | null>;
   restore(): Promise<boolean>;
   reporting(value: Reporting): Promise<void>;

@@ -47,8 +47,9 @@ test('@all reaches every available employee and still rejects an explicit unavai
   const tasks = room.snapshot().tasks.filter(t => t.messageId === id);
   const available = room.availability().filter(item => item.available).map(item => item.agentId).sort();
   assert.deepEqual(tasks.map(t => t.agentId).sort(), available);
-  assert.equal(tasks.some(t => t.agentId === 'workbuddy'), false);
+  assert.equal(tasks.some(t => t.agentId === 'workbuddy'), true);
   assert.ok(tasks.some(t => t.agentId === 'grok'));
+  room.availability=()=>[{agentId:'codex',available:true,reason:'fixture'},{agentId:'workbuddy',available:false,reason:'fixture missing'}];
   const before = room.snapshot();
   assert.throws(() => room.send({ id: randomUUID(), text: '@all @WorkBuddy 同步' }), /WorkBuddy/);
   assert.equal(room.snapshot().tasks.length, before.tasks.length);
@@ -66,7 +67,7 @@ test('live availability follows installed commands and only enables agents with 
   room.close(); store.close();
 });
 test('unavailable member blocks the entire send before persistence', () => {
-  const store = new Store(':memory:'); const room = new Teamroom(store); const before=room.snapshot();
+  const store = new Store(':memory:'); const room = new Teamroom(store); room.availability=()=>[{agentId:'codex',available:true,reason:'fixture'},{agentId:'workbuddy',available:false,reason:'fixture missing'}]; const before=room.snapshot();
   assert.throws(()=>room.send({id:randomUUID(),text:'@Codex @WorkBuddy 检查模块'}),/WorkBuddy/);
   assert.equal(room.snapshot().tasks.length,before.tasks.length); assert.equal(room.snapshot().messages.length,before.messages.length); room.close();store.close();
 });

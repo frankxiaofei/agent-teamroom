@@ -1,0 +1,69 @@
+name: Windows preview package
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Preview allows unsigned packages; stable requires signing secrets
+        type: choice
+        options: [preview, stable]
+        default: preview
+      publish:
+        description: Publish verified packages to GitHub Releases
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      TEAMROOM_RELEASE_CHANNEL: ${{ inputs.channel }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Require signing for stable
+        shell: pwsh
+        run: |
+          if ($env:TEAMROOM_RELEASE_CHANNEL -eq 'stable' -and -not $env:CSC_LINK) { throw 'Stable distribution requires WINDOWS_CSC_LINK and its signing password secret.' }
+      - run: npm ci
+      - run: npm run verify
+      - run: npm run smoke:desktop
+      - name: Package Windows
+        shell: pwsh
+        run: |
+          if ($env:CSC_LINK) { npm run package:signed } else { npm run package:win }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - run: npm run smoke:package
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release/*.exe | ForEach-Object { (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLower() + '  ' + $_.Name } | Set-Content release/SHA256SUMS.txt -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: teamroom-windows-${{ inputs.channel }}
+          path: |
+            release/*.exe
+            release/latest.yml
+            release/*.blockmap
+            release/SHA256SUMS.txt
+      - name: Publish verified release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $releaseArgs = @('release','create',('v'+$version),'--target','${{ github.sha }}','--title',('Teamroom '+$version),'--generate-notes')
+          if ($env:TEAMROOM_RELEASE_CHANNEL -eq 'preview') { $releaseArgs += '--prerelease' }
+          $releaseArgs += (Get-ChildItem release -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '.blockmap' -or $_.Name -eq 'latest.yml' }).FullName
+          $releaseArgs += (Resolve-Path release/SHA256SUMS.txt).Path
+          gh @releaseArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

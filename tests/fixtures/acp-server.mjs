@@ -8,7 +8,7 @@ createInterface({ input: process.stdin }).on('line', line => {
     send({ method: 'session/update', params: { update: { sessionUpdate: 'agent_message_chunk', content: { text: JSON.stringify(outcome) } } } });
     send({ id: promptId, result: { stopReason: 'end_turn' } }); return;
   }
-  if (m.method === 'initialize') { if (mode === 'null') { process.stdout.write('null\n'); return; } if (m.params.clientCapabilities.fs.writeTextFile || m.params.clientCapabilities.terminal) process.exit(2); reply({ protocolVersion: mode === 'version' ? 2 : 1, agentInfo: { name: mode === 'imposter' ? 'Other' : 'Cursor' }, agentCapabilities: { loadSession: true } }); }
+  if (m.method === 'initialize') { if (mode === 'null') { process.stdout.write('null\n'); return; } if (m.params.clientCapabilities.fs.writeTextFile || m.params.clientCapabilities.terminal) process.exit(2); reply({ protocolVersion: mode === 'version' ? 2 : 1, agentInfo: { name: mode === 'imposter' ? 'Other' : mode==='workbuddy'?'CodeBuddy':'Cursor' }, agentCapabilities: { loadSession: true } }); }
   if (m.method === 'session/load') {
     if (mode.startsWith('replay')) {
       send({ method: 'session/update', params: { sessionId: m.params.sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { text: '<teamroom-discussion>OLD_QUESTION</teamroom-discussion>' } } } });

@@ -6,7 +6,7 @@
 
 ![Teamroom desktop](docs/images/teamroom-desktop.png)
 
-## 当前版本：0.2.0 开发预览
+## 当前版本：0.3.0 开发预览
 
 - Electron + React + TypeScript 桌面应用，沿用已确认的群聊设计。
 - `@Claude Code`、`@Codex` 等产品名识别、多人 @、接收人去重与整体预检查。
@@ -14,7 +14,7 @@
 - SQLite 保存群消息、任务、模式和工作目录；重复消息 ID 不会重复派发。
 - 真实 **Codex App Server** 接入：流式回复、会话续接、命令/文件审批、取消和额度查询。
 - 本机安装发现：Codex、Claude Code、OpenCode、Cursor、Cline、Grok 有执行适配；检测到 CLI 才允许连接，认证和权限以实际请求为准。
-- 演示模式支持除 WorkBuddy 外的员工，不调用真实模型；WorkBuddy 始终标明待接入。Grok 为实验性适配器，只有协议夹具验证。
+- 演示模式支持全部七位员工，不调用真实模型。Grok 为实验性适配器，只有协议夹具验证。
 - 工具完成与老板验收分开；失败、中断、取消保留在记录里。
 - 默认只读；修改项目文件需在连接设置中明确启用目录写入，并继续遵守 Codex 审批。
 - 主动汇报：默认每 30 分钟有状态变化才发送、北京时间 18:00 日报、手动立即汇报；本地生成，不额外调用模型。
@@ -27,9 +27,9 @@
 | Grok | 支持 | 实验性；本机 CLI 需认证，真实任务未验证 |
 | Claude Code | 支持 | SDK 已实现；本机真实请求需认证 |
 | OpenCode | 支持 | ACP 已实现；本机真实只读任务通过 |
-| Cursor | 支持 | ACP 已实现；本机未发现 Agent CLI |
+| Cursor | 支持 | ACP 已实现；Windows 原生 CLI 入口和握手通过，真实任务待登录验收 |
 | Cline | 支持 | ACP 已实现；本机 CLI 需认证 |
-| WorkBuddy | 待接入 | 官方 CodeBuddy CLI ACP 路线调查完成，执行入口待验收 |
+| WorkBuddy | 支持 | 实验性官方 CodeBuddy CLI 只读通道；握手通过，真实任务待登录验收 |
 
 **这些卡通形象是原创概念设计，并非对应厂商的官方吉祥物。** 产品名称及商标归各自权利人所有。
 
@@ -86,7 +86,7 @@ npm start
 - 重启后未完成任务标记中断，需检查原工具后再明确发送；不会自动重派。
 - 命令和文件变更审批已实现。其他 Codex 交互请求明确返回不支持，不自动批准。
 - 账户额度不是余额或账单。没有账单来源时不推断欠费，不把 token 折算当实际消费。
-- Windows 预览可用 `npm run package:win` 构建 NSIS 用户安装器和便携版；未签名，无自动更新或稳定版承诺。
+- Windows 预览可用 `npm run package:win` 构建 NSIS 用户安装器和便携版；未签名，不承诺稳定版兼容；签名安装版支持确认后更新，当前未签名预览手动安装。
 - 今日统计按北京时间事件日期计数；效率只对同员工、分类、项目展示中位数和样本量，等待时间单列。
 - 账户页支持人工登记并关联多个工具，余额未知与零分开；没有服务商实际账单接口。
 - 连接设置支持本地备份与恢复；恢复前保留回滚副本，恢复后默认演示和只读，旧授权不复用。
@@ -109,7 +109,8 @@ node scripts/smoke-discussion.mjs --inference
 
 ## 规划与协作
 
-- [2026-10-18 交付与待验收清单](docs/delivery-2026-10-18.md)
+- [0.3 交付与待验收清单](docs/delivery-v0.3-2026-10-18.md)
+- [0.2 历史交付记录](docs/delivery-2026-10-18.md)
 - [需求清单](docs/requirements.md)
 - [Milestones](docs/milestones.md)
 - [Tasks](docs/tasks.md)
@@ -118,4 +119,16 @@ node scripts/smoke-discussion.mjs --inference
 - [形象素材说明](docs/assets.md)
 - [本机验证与证据边界](docs/verification.md)
 
-欢迎提交 issue，优先贡献真实账户兼容性验证、WorkBuddy 官方 CLI 接入与分发反馈。
+欢迎提交 issue，优先贡献真实账户兼容性验证、WorkBuddy 真实账户兼容性与分发反馈。
+
+## 0.3 新增与发布
+
+- WorkBuddy 接上官方 CodeBuddy CLI 的实验性只读通道：`codebuddy --acp`，仅开放 Read/Grep/Glob、禁用用户/项目设置与外部 MCP。写入任务在发送前阻止；不接管桌面旧聊天。
+- Cursor Windows 官方包使用自带 `node.exe + index.js`，不执行 shell 包装器；支持官方版本目录发现。CLI 认证仍由用户在工具中完成。
+- 「账户与额度」可下载空白模板、导入 UTF-8 CSV 账单；整数分保存金额，支持退款、账户/币种分组、编号去重与冲突整批拒绝。导入记录未联网核验，不自动同步服务商账单 API。
+- 「连接设置 → 版本更新」区分稳定与预览通道。签名 Windows 安装版经用户确认后下载、验证与当前程序相同的可信签名证书，并在没有执行任务时退出安装；可取消下载。未签名预览/便携版不能自动安装。
+- `.github/workflows/windows-preview.yml` 提供验证、打包、包内运行与产物校验；手动触发默认只生成 artifact。只有明确勾选 publish 才创建 Release，稳定通道要求签名 secrets。
+- `npm run package:signed` 要求真实代码签名证书。GitHub Secrets 名称为 WINDOWS_CSC_LINK / WINDOWS_CSC_KEY_PASSWORD；请自行配置，不把证书或密码提交仓库。
+- 数据库升级至 schema 3，迁移前自动保留一致的 SQLite 副本；旧版 0.2 无法直接打开新版库，回退须使用升级前副本。
+
+账单模板列：`invoice_id,date,amount,currency,description`。金额正数为扣费、负数为退款，最多两位小数；日期 `YYYY-MM-DD`，币种 USD/CNY，文件最多 1 MiB / 10000 条。共享一个服务商账户的工具应关联同一个账户别名。

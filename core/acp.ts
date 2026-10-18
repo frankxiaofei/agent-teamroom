@@ -71,7 +71,7 @@ export class AcpRun {
     try {
       const init = await rpc.request('initialize', { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false }, clientInfo: { name: 'Teamroom', version: '0.2.0' } });
       if (init.protocolVersion !== undefined && init.protocolVersion !== 1) throw new Error('工具 ACP 协议版本不兼容。');
-      if (this.label === 'Cursor' && !/cursor/i.test(init.agentInfo?.name || '')) throw new Error('未识别为官方 Cursor Agent，未发送认证或任务。');
+      if (this.label === 'Cursor' && (init.agentInfo?.name ? !/cursor/i.test(init.agentInfo.name) : !init.authMethods?.some((a:any)=>a.id==='cursor_login'))) throw new Error('未识别为官方 Cursor Agent，未发送认证或任务。');
       if (this.authenticate) await this.authenticate(rpc, init);
       let session: any;
       if (task.threadId && init.agentCapabilities?.loadSession) session = await rpc.request('session/load', { sessionId: task.threadId, cwd: task.workspace, mcpServers: [] });

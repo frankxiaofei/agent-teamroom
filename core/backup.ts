@@ -2,7 +2,8 @@ import { DatabaseSync, backup } from 'node:sqlite';
 import { existsSync, statSync, renameSync, copyFileSync, unlinkSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { AGENTS } from './agents.js';
-import { Store } from './store.js';
+import { Store, SCHEMA_VERSION } from './store.js';
+import { validateBill } from './billing.js';
 import { validateReporting } from './reports.js';
 import { validateAccount } from './accounts.js';
 const states = ['queued', 'running', 'waiting_approval', 'waiting_discussion', 'awaiting_review', 'accepted', 'failed', 'cancelled', 'interrupted'];
@@ -15,7 +16,7 @@ export function validatedBackup(file: string) {
   const db = new DatabaseSync(file, { readOnly: true });
   try {
     check(Object.values(db.prepare('PRAGMA integrity_check').get()!)[0] === 'ok');
-    check(Number(Object.values(db.prepare('PRAGMA user_version').get()!)[0]) <= 2);
+    check(Number(Object.values(db.prepare('PRAGMA user_version').get()!)[0]) <= SCHEMA_VERSION);
     const tables = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]).map(r => r.name));
     check(db.prepare("SELECT 1 FROM sqlite_master WHERE type IN ('trigger','view') OR upper(sql) LIKE '%CREATE VIRTUAL TABLE%' LIMIT 1").get() === undefined);
     check([...tables].every(name => ['messages', 'tasks', 'settings', 'reports', 'discussions', 'preferences', 'task_events', 'sqlite_sequence'].includes(name)));
@@ -48,6 +49,7 @@ export function validatedBackup(file: string) {
       const value = JSON.parse(row.json);
       if (row.key === 'reporting') validateReporting(value);
       else if (row.key === 'accounts') { check(Array.isArray(value)); value.forEach((a: any) => { validateAccount(a); check(a.source === 'manual' && timestamp(a.updatedAt)); }); const ids = value.flatMap((a: any) => a.tools); check(new Set(ids).size === ids.length); }
+      else if (row.key === 'bills') {check(Array.isArray(value)&&value.length<=10000);value.forEach(validateBill);check(new Set(value.map((v:any)=>v.id)).size===value.length);}
       else if (/^report-origin:(demo|live)$/.test(row.key)) check(timestamp(value));
       else if (/^report-cursor:(demo|live)$/.test(row.key)) check(value && timestamp(value.nextCheck) && timestamp(value.from) && Number.isInteger(value.sequence) && value.sequence >= 0 && typeof value.discussions === 'string');
       else check(false);

@@ -59,3 +59,22 @@ GitHub CI 会独立验证 Ubuntu/Windows 的测试、构建和桌面烟测，具
 - 本批为未签名 Windows x64 预览，未验证 macOS/Linux 分发、跨版本安装升级、默认系统通知真实投递或自动更新。
 - Setup SHA256：`b1f08063f9cbb11954691b6ac3e4b32f033378eb6906df781759f53d841b8287`。
 - Portable SHA256：`0cde3967d3bc32b2bb927ab69dd4790d32cdcdc9bff9a32f3ccccd2ffa9ffbc7`。
+
+## 0.3 本机验证（2026-10-18 继续开发）
+
+- `npm run verify`：69 项测试与构建通过，包括账单解析/退款/整数分/重复冲突/恢复、更新通道、签名安装策略与只读发送保护。
+- `npm run smoke:desktop`：账单界面导入/重复、包含账单的备份恢复、预览/稳定更新状态和限定下载页通过。真实更新客户端在 Electron 中成功载入，未签名安装 IPC 拒绝；未使用实际证书执行真实自动升级。
+- CodeBuddy CLI 2.168.2（工作区隔离安装）：真实 initialize 协议 1 通过，session/new 返回需认证。未将握手说成真实任务完成。
+- Cursor Windows 官方 2026.10.16-e3cb207（工作区隔离包）：版本、真实 ACP initialize 协议 1 通过；session/new 需认证。未更改系统 PATH，也未读取或搬运桌面凭据。
+- Claude 官方 CLI 登录状态查询仍未确认已登录；Cline/Grok 上批认证缺口未获得新的登录证据。
+- 更新客户端采用 electron-updater 6.8.9，代码与测试区分检查、下载、签名验证、安装；未签名当前程序在网络下载前拒绝，目标证书不匹配时不安装，活动任务阻止退出。
+- X：Chrome 读取两次超时，内置浏览器新开首页也超时；没有发帖、没有帖子链接、没有把草稿当成已发布。
+- 本轮 Windows 安装/升级与云端打包结果将在下方收口，旧 0.2 的证据不代替新版本验收。
+
+### 0.3 Windows 最终收口
+
+- 最终源码重新运行 verify（69/69）与 desktop smoke 通过；`npm audit --json` 为 0 个已知漏洞。
+- 最终 NSIS/portable 构建通过，`smoke:package` 与 `smoke-portable.mjs` 实际程序验证通过。预览仍为 NotSigned。
+- `smoke-upgrade.mjs` 实际升级工作区的 0.2 安装程序到 0.3，同一数据目录完整保留 2 项任务、1 个账户、2 份汇报、1 个讨论；schema 从 2 到 3，自动迁移副本仍为 2。这是手动安装升级，不是签名自动更新。
+- ASAR 2582 项，6 个关键入口齐全；主进程/签名更新模块与当前编译源码哈希一致，版本/入口/生产依赖一致，未发现 .env、用户数据库、work 或测试缓存。
+- 安装包 SHA256 与剩余条件见 [0.3 交付清单](delivery-v0.3-2026-10-18.md)。云端验证另列运行链接，不以本机结果代替。

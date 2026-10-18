@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import assert from 'node:assert/strict';
 mkdirSync('.smoke-data',{recursive:true}); mkdirSync('.build-temp',{recursive:true});
@@ -9,7 +9,8 @@ const data=mkdtempSync(resolve('.smoke-data/portable-')),env={...process.env,TEA
 // NSIS does not forward debugger stdout; inspect the real child app through local CDP.
 const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;await new Promise(r=>server.close(r));
 const args=[`--remote-debugging-port=${port}`];if(process.env.TEAMROOM_SMOKE_NO_SANDBOX==='1')args.push('--no-sandbox','--disable-gpu');
-const child=spawn(resolve('release/Teamroom-Portable-0.2.0-x64.exe'),args,{env,windowsHide:true,shell:false,stdio:'ignore'});let browser;
+const version=JSON.parse(readFileSync('package.json','utf8')).version;
+const child=spawn(resolve(`release/Teamroom-Portable-${version}-x64.exe`),args,{env,windowsHide:true,shell:false,stdio:'ignore'});let browser;
 try {
   const deadline=Date.now()+90000;
   while(Date.now()<deadline){try{browser=await chromium.connectOverCDP(`http://127.0.0.1:${port}`,{timeout:1500});break;}catch{await new Promise(r=>setTimeout(r,1000));}}

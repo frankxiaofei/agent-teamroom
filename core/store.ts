@@ -1,16 +1,24 @@
 import { DatabaseSync, backup } from 'node:sqlite';
 import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import type { Discussion, Message, Report, Settings, Task, TaskEvent, Mode } from './types.js';
+export const SCHEMA_VERSION = 3;
 
 export class Store {
   private db: DatabaseSync;
   closed = false;
+  migrationBackup?: string;
   constructor(file: string) {
     if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
     this.db = new DatabaseSync(file);
     try {
-    if ((this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version > 2) throw new Error('数据库版本高于当前程序，请使用更新的 Teamroom。');
+    const oldVersion=(this.db.prepare('PRAGMA user_version').get() as {user_version:number}).user_version;
+    if (oldVersion > SCHEMA_VERSION) throw new Error('数据库版本高于当前程序，请使用更新的 Teamroom。');
+    if(file!==':memory:'&&oldVersion<SCHEMA_VERSION&&this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").get()) {
+      this.migrationBackup=file+'.before-v'+SCHEMA_VERSION+'-'+randomUUID()+'.db';
+      this.db.prepare('VACUUM INTO ?').run(this.migrationBackup);
+    }
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
       CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), json TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, json TEXT NOT NULL, at INTEGER NOT NULL);
@@ -21,7 +29,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS task_events (sequence INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS messages_at ON messages(at);
       CREATE INDEX IF NOT EXISTS tasks_at ON tasks(created_at);`);
-    this.db.exec('PRAGMA user_version=2');
+    this.db.exec('PRAGMA user_version='+SCHEMA_VERSION);
     for (const task of this.tasks()) {
       if (['queued', 'running', 'waiting_approval'].includes(task.status)) { const now = Date.now(); this.task({ ...task, status: 'interrupted', finishedAt: now, lastEventAt: now, result: '应用重启，执行状态未恢复。请检查原工具后重新发送；不会自动重派。' }); }
     }

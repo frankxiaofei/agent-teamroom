@@ -1,5 +1,5 @@
 import { _electron as electron } from 'playwright';
-import { mkdtempSync, existsSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ try {
   await page.getByRole('button', { name: '每日汇报', exact: true }).click(); await page.getByRole('heading', { name: '工作效率', exact: true }).waitFor();
   mkdirSync('docs/images', { recursive: true }); await page.screenshot({ path: 'docs/images/teamroom-efficiency.png' });
   assert.deepEqual(errors, []);
-  const version = await app.evaluate(({ app }) => app.getVersion()); assert.equal(version, '0.2.0');
+  const version = await app.evaluate(({ app }) => app.getVersion()); assert.equal(version, JSON.parse(readFileSync('package.json','utf8')).version);
   await app.close(); app = undefined;
   app = await electron.launch({ executablePath, args, env }); const reopened = await app.firstWindow(); await reopened.getByRole('heading', { name: 'Agent 工作群', exact: true }).waitFor();
   assert.equal((await reopened.evaluate(() => window.teamroom.snapshot())).accounts[0].label, 'Package smoke account');

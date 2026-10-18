@@ -1,0 +1,28 @@
+import { useState } from 'react';
+import type { Bridge, Snapshot } from '../core/types.js';
+import type { UpdateInfo } from '../core/updates.js';
+import { AGENTS } from '../core/agents.js';
+const money=(value: bigint|number)=>{const n=BigInt(value),a=n<0n?-n:n;return (n<0n?'-':'')+(a/100n)+'.'+(a%100n).toString().padStart(2,'0');};
+export function BillingPanel({snapshot,bridge,onError}:{snapshot:Snapshot;bridge:Bridge;onError:(message:string)=>void}) {
+  const [accountId,setAccountId]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');const accounts=snapshot.accounts||[],bills=snapshot.bills||[];
+  const totals=new Map<string,{label:string;currency:string;value:bigint}>();
+  for(const b of bills){const key=JSON.stringify([b.accountId,b.currency]),row=totals.get(key)||{label:b.accountLabel,currency:b.currency,value:0n};row.value+=BigInt(b.amountCents);totals.set(key,row);}
+  async function load(){setBusy(true);onError('');try{const result=await bridge.importBills(accountId);if(result)setNotice(`导入 ${result.added} 条，跳过 ${result.duplicates} 条重复记录。`);}catch(e){onError((e as Error).message);}finally{setBusy(false);}}
+  return <section className="settings-panel"><h3>账单记录</h3><p>从服务商账单整理为模板 CSV 后导入。金额按账户和币种分别合计，退款填写负数；同一账户的账单编号去重，冲突时整批不导入。</p><p className="g-hint">来源为你选择的文件，未联网核验；这里的导入金额和模型估算分开，不推断余额或欠费。删除账户登记不会删除已有账单。</p><label>账单所属账户<select aria-label="账单所属账户" value={accountId} onChange={e=>setAccountId(e.target.value)}><option value="">选择已登记账户</option>{accounts.map(a=><option value={a.id} key={a.id}>{a.label}</option>)}</select></label><div className="g-actions"><button className="g-button" disabled={busy} onClick={()=>void bridge.billTemplate().then(saved=>{if(saved)setNotice('空白 CSV 模板已保存，请填入真实账单。');}).catch(e=>onError(e.message))}>下载账单模板</button><button className="g-button primary" disabled={busy||!accounts.some(a=>a.id===accountId)} onClick={()=>void load()}>导入账单 CSV</button></div>{notice&&<p role="status">{notice}</p>}{[...totals.entries()].map(([key,row])=><p key={key}>{row.label} · {row.currency} {money(row.value)}（导入合计）</p>)}{bills.length?<div className="operations-table"><table><thead><tr><th>日期 / 账户</th><th>账单 / 说明</th><th>金额 / 来源</th><th>操作</th></tr></thead><tbody>{bills.slice(-100).reverse().map(b=><tr key={b.id}><td>{b.date}<small>{b.accountLabel}</small></td><td>{b.invoiceId}<small>{b.description}</small></td><td>{b.currency} {money(b.amountCents)}<small>CSV · {b.fileName}<br/>{new Date(b.importedAt).toLocaleString('zh-CN')}</small></td><td><button className="g-button" onClick={()=>void bridge.removeBill(b.id).catch(e=>onError(e.message))}>删除账单</button></td></tr>)}</tbody></table>{bills.length>100&&<p>显示最近 100 条，合计包含全部 {bills.length} 条。</p>}</div>:<p className="g-hint">尚未导入账单，未知不显示为零消费。</p>}</section>;
+}
+export function UpdatePanel({bridge,onError}:{bridge:Bridge;onError:(message:string)=>void}) {
+  const [channel,setChannel]=useState<'stable'|'preview'>('preview'),[info,setInfo]=useState<UpdateInfo>(),[busy,setBusy]=useState(false),[installing,setInstalling]=useState(false);
+  async function install(){setInstalling(true);onError('');try{await bridge.installUpdate();}catch(e){onError((e as Error).message);}finally{setInstalling(false);}}
+  async function check(){setBusy(true);onError('');try{setInfo(await bridge.checkUpdates(channel));}catch(e){setInfo(undefined);onError((e as Error).message);}finally{setBusy(false);}}
+  return <section className="settings-panel"><h3>版本更新</h3><label>更新通道<select aria-label="更新通道" value={channel} onChange={e=>{setChannel(e.target.value as 'stable'|'preview');setInfo(undefined);}}><option value="preview">开发预览（含预览发布）</option><option value="stable">稳定版</option></select></label><div className="g-actions"><button className="g-button" disabled={busy} onClick={()=>void check()}>检查更新</button>{info?.available&&<button className="g-button primary" onClick={()=>void bridge.openUpdate().catch(e=>onError(e.message))}>打开官方下载页</button>}{info?.available&&info.canAutoInstall&&<button className="g-button primary" disabled={installing} onClick={()=>void install()}>下载并安装签名更新</button>}{installing&&<button className="g-button" onClick={()=>void bridge.cancelUpdate().catch(e=>onError(e.message))}>取消下载</button>}</div>{info&&<p role="status">当前 {info.current} · {info.latest?info.available?'发现 '+info.latest:'没有更新版本':'此通道暂无已发布版本'} · {new Date(info.checkedAt).toLocaleString('zh-CN')}</p>}<p className="g-hint">只查询本项目 GitHub Releases。签名 Windows 安装版可确认后下载并安装，校验同一证书并检查任务状态；未签名预览和便携版使用下载页。检查更新本身不下载安装。</p></section>;
+}
+const setup=[
+  {id:'claude',login:'claude auth login',install:'npm install -g @anthropic-ai/claude-code'},
+  {id:'codex',login:'codex login',install:'npm install -g @openai/codex'},
+  {id:'opencode',login:'opencode auth login',install:'npm install -g opencode-ai'},
+  {id:'cursor',login:'agent login',install:"Windows 官方安装：https://cursor.com/install?win32=true"},
+  {id:'cline',login:'cline auth',install:'npm install -g cline'},
+  {id:'grok',login:'grok login',install:'npm install -g @xai-official/grok'},
+  {id:'workbuddy',login:'运行 codebuddy，在工具内完成登录',install:'npm install -g @tencent-ai/codebuddy-code'},
+];
+export function ConnectionGuide({snapshot}:{snapshot:Snapshot}) {return <section className="settings-panel"><h3>工具安装与登录</h3><p className="g-hint">在各工具自己的终端完成安装和登录，保存连接设置后重新检测。命令存在只表示执行入口存在，不能证明已登录或模型可用。请勿把密码或 API Key 发到群里。</p>{setup.map(s=><article className="connection-guide" key={s.id}><h4>{AGENTS.find(a=>a.id===s.id)?.name}</h4><p>{snapshot.availability.find(a=>a.agentId===s.id)?.reason}</p><pre>{s.install}{'\n'}{s.login}</pre>{s.id==='workbuddy'&&<p className="g-hint">实验性 CodeBuddy 官方 CLI 通道：目前只读，不接管 WorkBuddy 桌面已有聊天。</p>}</article>)}</section>;}

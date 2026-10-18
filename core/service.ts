@@ -9,6 +9,8 @@ import { GrokRun } from './grok.js';
 import { ClaudeRun } from './claude.js';
 import { AcpRun } from './acp.js';
 import { OpenCodeRun } from './opencode.js';
+import { WorkBuddyRun } from './workbuddy.js';
+import { parseBills, mergeBills, type Bill } from './billing.js';
 import { resolveCommand } from './commands.js';
 import { analytics } from './analytics.js';
 import { validateAccount, type Account } from './accounts.js';
@@ -30,7 +32,7 @@ export class Teamroom extends EventEmitter {
   constructor(readonly store: Store, private demoDelay = 650, private probe?: CommandProbe, private runnerFactory?: (agentId: AgentId) => Runner) {
     super();
     if (!store.messages().length) this.seed();
-    this.discussions = new Discussions(store, source => this.availability(source), id => this.makeRunner(id), d => { this.publish(); if (d.status === 'needs_decision') this.emit('notice', { source: d.source, title: '讨论等你决定', body: d.question, discussionId: d.id }); }, (task, values) => this.update(task, values));
+    this.discussions = new Discussions(store, source => this.availability(source,false), id => this.makeRunner(id), d => { this.publish(); if (d.status === 'needs_decision') this.emit('notice', { source: d.source, title: '讨论等你决定', body: d.question, discussionId: d.id }); }, (task, values) => this.update(task, values));
   }
   private seed() {
     const at = Date.now();
@@ -39,12 +41,12 @@ export class Teamroom extends EventEmitter {
     this.store.task(task);
     this.store.message({ id: randomUUID(), role: 'agent', agentId: 'cursor', taskId: task.id, text: task.result, at: at + 1, source: 'demo' });
   }
-  availability(mode = this.store.settings().mode): Availability[] {
+  availability(mode = this.store.settings().mode,writable=this.store.settings().writable): Availability[] {
     const installs = mode === 'live' ? this.installReports() : [];
     return AGENTS.map(agent => {
-      if (agent.id === 'workbuddy') return { agentId: agent.id, available: false, reason: '后续接入，当前无法接收任务' };
       if (mode === 'demo') return { agentId: agent.id, available: true, reason: '演示适配器' };
       const report = installs.find(item => item.agentId === agent.id)!;
+      if(agent.id==='workbuddy'&&report.executable&&writable)return {agentId:agent.id,available:false,reason:'官方 CodeBuddy CLI 通道目前只读，请关闭写入权限；只读讨论仍可邀请。'};
       return { agentId: agent.id, available: report.executable, reason: report.executable ? report.detail + '；登录与模型权限以实际请求为准' : report.detail };
     });
   }
@@ -54,7 +56,7 @@ export class Teamroom extends EventEmitter {
   }
   snapshot(): Snapshot {
     const settings = this.store.settings(), tasks = this.store.tasks();
-    return { settings, messages: this.store.messages(), tasks, approvals: [...this.approvals.values()].map(({ answer: _, ...a }) => a), availability: this.availability(), quota: this.quotaData, reporting: this.store.value('reporting', DEFAULT_REPORTING), reports: this.store.reports(), discussions: this.store.discussions(), analytics: analytics(tasks, this.store.events(settings.mode), settings.mode), accounts: this.store.value<Account[]>('accounts', []) };
+    return { settings, messages: this.store.messages(), tasks, approvals: [...this.approvals.values()].map(({ answer: _, ...a }) => a), availability: this.availability(), quota: this.quotaData, reporting: this.store.value('reporting', DEFAULT_REPORTING), reports: this.store.reports(), discussions: this.store.discussions(), analytics: analytics(tasks, this.store.events(settings.mode), settings.mode), accounts: this.store.value<Account[]>('accounts', []), bills:this.store.value<Bill[]>('bills',[]) };
   }
   private publish() { if (!this.closing) this.emit('snapshot', this.snapshot()); }
   settings(value: Settings) {
@@ -108,6 +110,7 @@ export class Teamroom extends EventEmitter {
     if (id === 'grok') return new GrokRun();
     if (id === 'claude') return new ClaudeRun();
     if (id === 'opencode') return new OpenCodeRun();
+    if (id === 'workbuddy') return new WorkBuddyRun();
     if (id === 'cline') return new AcpRun(resolveCommand('cline', ['--acp', '--auto-approve', 'false']), 'Cline');
     if (id === 'cursor') {
       let command;
@@ -211,6 +214,8 @@ export class Teamroom extends EventEmitter {
     this.store.saveValue('accounts', [...accounts.filter(a => a.id !== value.id), value]); this.publish();
   }
   removeAccount(id: string) { if (typeof id !== 'string') throw new Error('账户 ID 无效。'); this.store.saveValue('accounts', this.store.value<Account[]>('accounts', []).filter(a => a.id !== id)); this.publish(); }
+  importBills(accountId: string,text: string,fileName: string) { const account=this.store.value<Account[]>('accounts',[]).find(a=>a.id===accountId);if(!account)throw new Error('请先登记并选择账单所属账户。');const result=mergeBills(this.store.value<Bill[]>('bills',[]),parseBills(text,account.id,account.label,fileName));this.store.saveValue('bills',result.bills);this.publish();return {added:result.added,duplicates:result.duplicates}; }
+  removeBill(id: string) {if(typeof id!=='string'||! /^[a-f0-9]{64}$/.test(id))throw new Error('账单 ID 无效。');this.store.saveValue('bills',this.store.value<Bill[]>('bills',[]).filter(b=>b.id!==id));this.publish();}
   hasActiveWork() { return Boolean(this.active || this.discussions.busy || this.store.tasks().some(t => ['queued', 'running', 'waiting_approval'].includes(t.status)) || this.store.discussions().some(d => ['queued', 'running'].includes(d.status))); }
   close() { this.closing = true; this.abort?.abort(); this.runner?.close(); this.discussions.close(); }
 }
