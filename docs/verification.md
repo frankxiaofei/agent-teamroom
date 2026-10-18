@@ -69,7 +69,7 @@ GitHub CI 会独立验证 Ubuntu/Windows 的测试、构建和桌面烟测，具
 - Claude 官方 CLI 登录状态查询仍未确认已登录；Cline/Grok 上批认证缺口未获得新的登录证据。
 - 更新客户端采用 electron-updater 6.8.9，代码与测试区分检查、下载、签名验证、安装；未签名当前程序在网络下载前拒绝，目标证书不匹配时不安装，活动任务阻止退出。
 - X：Chrome 读取两次超时，内置浏览器新开首页也超时；没有发帖、没有帖子链接、没有把草稿当成已发布。
-- 本轮 Windows 安装/升级与云端打包结果将在下方收口，旧 0.2 的证据不代替新版本验收。
+- 本轮 Windows 安装/升级与云端打包结果在下方收口，旧 0.2 的证据不代替新版本验收。
 
 ### 0.3 Windows 最终收口
 
@@ -77,4 +77,11 @@ GitHub CI 会独立验证 Ubuntu/Windows 的测试、构建和桌面烟测，具
 - 最终 NSIS/portable 构建通过，`smoke:package` 与 `smoke-portable.mjs` 实际程序验证通过。预览仍为 NotSigned。
 - `smoke-upgrade.mjs` 实际升级工作区的 0.2 安装程序到 0.3，同一数据目录完整保留 2 项任务、1 个账户、2 份汇报、1 个讨论；schema 从 2 到 3，自动迁移副本仍为 2。这是手动安装升级，不是签名自动更新。
 - ASAR 2582 项，6 个关键入口齐全；主进程/签名更新模块与当前编译源码哈希一致，版本/入口/生产依赖一致，未发现 .env、用户数据库、work 或测试缓存。
-- 安装包 SHA256 与剩余条件见 [0.3 交付清单](delivery-v0.3-2026-10-18.md)。云端验证另列运行链接，不以本机结果代替。
+- 安装包 SHA256 与剩余条件见 [0.3 交付清单](delivery-v0.3-2026-10-18.md)。
+
+### 0.3 GitHub 验证
+
+- 功能提交：`144bc83d7706331f1e4411689235721ef14b3738`。
+- [Windows / Ubuntu 验证](https://github.com/frankxiaofei/agent-teamroom/actions/runs/39085790529)：两平台测试、构建及桌面 smoke 全部 success。
+- [Windows preview package](https://github.com/frankxiaofei/agent-teamroom/actions/runs/39085791401)：实际手动触发 preview / publish=false，测试、桌面验证、NSIS/portable 打包、包内运行、校验和及 artifact 上传全部 success；Publish verified release 跳过，没有创建公开 Release。
+- 云端包按各自 SHA256SUMS 校验；该构建通过不代表可信证书签名或签名自动升级已验收。

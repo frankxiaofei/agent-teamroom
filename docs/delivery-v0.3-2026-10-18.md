@@ -10,7 +10,7 @@
 | Cursor Windows 入口 | 使用官方包的 node.exe + index.js，支持版本目录，跳过 shell 包装器 | 入口测试、官方 2026.10.16-e3cb207 握手通过；新会话需认证 |
 | 账单 CSV | 空白模板、归属账户、整数分和退款、按账户/币种合计、编号去重、冲突整批拒绝、删除和恢复 | 单元测试及实际桌面导入/重复/备份恢复通过 |
 | 更新 | 稳定/预览检查、限定官方仓库下载页；签名安装版确认后下载，验证同一可信证书，无活动任务时退出安装；可取消 | 通道/签名策略测试、Electron 加载真实 updater、未签名 IPC 拒绝通过 |
-| 发布流程 | 手动 Windows workflow：验证、打包、启动检查、校验和及 artifact；默认不发布 Release，稳定版要求签名 | 本机打包通过；云端运行结果见 verification |
+| 发布流程 | 手动 Windows workflow：验证、打包、启动检查、校验和及 artifact；默认不发布 Release，稳定版要求签名 | 本机及云端实际流程通过，publish=false 未创建 Release |
 | 数据升级 | schema 3；迁移前保留一致副本，旧备份可恢复，未来版本库拒绝打开 | 实际 0.2→0.3 手动安装升级通过 |
 
 原有群聊 @ 派发、带名牌卡通员工、30 分钟有变化才汇报、北京时间 18:00 日报、群讨论、老板结论、今日状态/耗时、账户登记和托盘继续可用。
@@ -26,6 +26,7 @@
 - `node scripts/smoke-upgrade.mjs`：工作区内的 0.2 安装版实际升级到 0.3；保留 2 项任务、1 个账户、2 份汇报、1 个讨论。新版 schema 3、迁移副本 schema 2 均可读取。脚本只用于已知的旧版工作区测试安装，默认 CI 不运行。
 - ASAR 共 2582 项，6 个新增/关键入口齐全，主程序与更新模块匹配当前编译源码；精简 manifest 的版本/入口/运行依赖一致，未发现 .env、用户数据库或工作缓存。
 - `npm audit --json`：0 个已知漏洞。
+- [Windows / Ubuntu CI](https://github.com/frankxiaofei/agent-teamroom/actions/runs/39085790529) 与 [Windows 云端打包](https://github.com/frankxiaofei/agent-teamroom/actions/runs/39085791401) 均 success，功能提交 `144bc83`。签名与真实账号缺口不因 CI 通过而关闭。
 
 本机 0.3 安装器 SHA256：`48601a48edbbb0828ab716f85776c731c719060f5ec65f279c52a7ac8ee9983b`。
 
