@@ -58,7 +58,7 @@ test('live availability follows installed commands and only enables agents with 
   const store = new Store(':memory:'); const room = new Teamroom(store, 10, name => ['claude', 'cursor', 'grok'].includes(name));
   store.saveSettings({ mode: 'live', workspace: '', writable: false });
   const availability = room.availability();
-  assert.equal(availability.find(item => item.agentId === 'claude')?.available, false);
+  assert.equal(availability.find(item => item.agentId === 'claude')?.available, true);
   assert.match(availability.find(item => item.agentId === 'claude')!.reason, /已检测到 claude/);
   assert.match(availability.find(item => item.agentId === 'cursor')!.reason, /尚未发现可执行的 Agent 命令/);
   assert.equal(availability.find(item => item.agentId === 'grok')?.available, true);
@@ -74,4 +74,11 @@ test('queued and running demo jobs can be cancelled', async () => {
   const store = new Store(':memory:');const room=new Teamroom(store,200);const id=randomUUID();room.send({id,text:'@Codex @Cline 检查'});
   const tasks=room.snapshot().tasks.filter(t=>t.messageId===id);await room.cancel(tasks[1].id);await room.cancel(tasks[0].id);await new Promise(r=>setTimeout(r,20));
   assert.ok(room.snapshot().tasks.filter(t=>t.messageId===id).every(t=>t.status==='cancelled'));room.close();store.close();
+});
+test('changing write permission never reuses an opposite-permission session in either queue lookup', async () => {
+  const store = new Store(':memory:'); let resumed: string | undefined;
+  const room = new Teamroom(store,10,name=>name==='codex',()=>({async run(task,_settings,hooks){resumed=task.threadId;hooks.text('fixture');},async cancel(){},close(){}}));
+  store.task({id:'previous',messageId:'previous',agentId:'codex',prompt:'fixture',workspace:process.cwd(),writable:false,threadId:'readonly-session',status:'awaiting_review',createdAt:1,lastEventAt:1,result:'fixture',source:'live'});
+  room.settings({mode:'live',workspace:process.cwd(),writable:true}); const id=randomUUID();room.send({id,text:'@Codex new task'});
+  await wait(()=>store.tasks().some(t=>t.messageId===id&&t.status==='awaiting_review'));assert.equal(resumed,undefined);room.close();store.close();
 });

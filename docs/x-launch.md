@@ -17,7 +17,7 @@
 
 2. 最想解决的是来回切工具、找聊天、等结果。现在把沟通、进展、审批和成果验收集中到一个群里，旁边能看员工状态，另有日报和工作记录。
 
-3. 第一版是源码开发预览。真实接入目前支持 Codex App Server；Grok 是实验性适配器，只有协议夹具证据，尚未完成真实 CLI 验证；其他工具先提供演示，Claude Code、OpenCode、Cursor、Cline 按公开路线图推进，WorkBuddy 还要确认接口能力。
+3. 当前是 0.2 开发预览。Codex 与 OpenCode 有真实只读任务证据；Claude Code、Cursor、Cline 与 Grok 的适配已实现，真实验收仍受各自登录/CLI 条件限制。WorkBuddy 的官方 CLI 路线已调查，执行入口待验收。新增今日汇报、分项耗时、账户登记和本地备份恢复，Windows 包未签名。
 
 4. 默认只读。任务、聊天和设置保存在本地 SQLite；工具完成和你的验收分开记。重启后不会悄悄把没完成的任务重新执行。
 
@@ -29,7 +29,7 @@ Building Teamroom: a desktop group chat for AI agents.
 
 @ an agent to assign work. Progress, approvals & deliveries stay in the group.
 
-Source preview: live Codex; Grok experimental (fixtures only); other adapters planned. Local SQLite, read-only by default.
+Preview: live Codex & OpenCode. More adapters implemented; auth/CLI acceptance pending. Local reports, read-only discussions, account notes & backups. Unsigned Windows preview.
 
 https://github.com/frankxiaofei/agent-teamroom
 
@@ -44,3 +44,7 @@ https://github.com/frankxiaofei/agent-teamroom
 ## 本次发布准备结果
 
 GitHub 源码已公开，推荐稿和桌面截图就绪。浏览器连接在读取 X 页面时连续超时，未能确认当前登录账号及编辑器状态，因此尚未发帖。恢复连接后继续 T22：核对账号、发布开发预览介绍、读回正文与帖子 URL。
+
+## 2026-10-18 素材更新
+
+本日新增功能与限制已同步到上面的推荐草稿，仍未发布。不能把账户人工登记宣传成服务商实际账单查询，也不能把未签名预览包称为正式稳定安装版。

@@ -6,6 +6,12 @@ import { AGENTS } from './agents.js';
 import { executionPrompt, parseMentions } from './mentions.js';
 import { CodexRun, readCodexQuota } from './codex.js';
 import { GrokRun } from './grok.js';
+import { ClaudeRun } from './claude.js';
+import { AcpRun } from './acp.js';
+import { OpenCodeRun } from './opencode.js';
+import { resolveCommand } from './commands.js';
+import { analytics } from './analytics.js';
+import { validateAccount, type Account } from './accounts.js';
 import { detectInstalls, type CommandProbe, type ToolInstall } from './installs.js';
 import { Store } from './store.js';
 import { Discussions, DISCUSSION_INSTRUCTION, discussionRequest, type Runner } from './discussions.js';
@@ -47,7 +53,8 @@ export class Teamroom extends EventEmitter {
     return this.installs;
   }
   snapshot(): Snapshot {
-    return { settings: this.store.settings(), messages: this.store.messages(), tasks: this.store.tasks(), approvals: [...this.approvals.values()].map(({ answer: _, ...a }) => a), availability: this.availability(), quota: this.quotaData, reporting: this.store.value('reporting', DEFAULT_REPORTING), reports: this.store.reports(), discussions: this.store.discussions() };
+    const settings = this.store.settings(), tasks = this.store.tasks();
+    return { settings, messages: this.store.messages(), tasks, approvals: [...this.approvals.values()].map(({ answer: _, ...a }) => a), availability: this.availability(), quota: this.quotaData, reporting: this.store.value('reporting', DEFAULT_REPORTING), reports: this.store.reports(), discussions: this.store.discussions(), analytics: analytics(tasks, this.store.events(settings.mode), settings.mode), accounts: this.store.value<Account[]>('accounts', []) };
   }
   private publish() { if (!this.closing) this.emit('snapshot', this.snapshot()); }
   settings(value: Settings) {
@@ -66,6 +73,7 @@ export class Teamroom extends EventEmitter {
   send(input: SendInput) {
     if (!input || typeof input.id !== 'string' || !/^[A-Za-z0-9-]{8,80}$/.test(input.id)) throw new Error('消息 ID 无效。');
     if (this.store.hasMessage(input.id)) return;
+    if (input.category !== undefined && !['未分类', '开发', '研究', '审查', '办公'].includes(input.category)) throw new Error('任务分类无效。');
     const { recipients, prompt, all } = parseMentions(input.text);
     const settings = this.store.settings();
     const available = this.availability();
@@ -78,8 +86,8 @@ export class Teamroom extends EventEmitter {
     this.store.transaction(() => {
       this.store.message({ id: input.id, agentId: null, role: 'user', text: input.text.trim(), at, source: settings.mode });
       for (const agentId of targets) {
-        const previous = this.store.tasks().filter(t => t.source === 'live' && t.agentId === agentId && t.workspace === workspace && t.threadId).at(-1);
-        this.store.task({ id: randomUUID(), messageId: input.id, agentId, prompt, workspace, writable: settings.writable, status: 'queued', createdAt: at, lastEventAt: at, result: '', source: settings.mode, threadId: previous?.threadId });
+        const previous = this.store.tasks().filter(t => t.source === 'live' && t.agentId === agentId && t.workspace === workspace && t.writable === settings.writable && t.threadId).at(-1);
+        this.store.task({ id: randomUUID(), messageId: input.id, agentId, prompt, workspace, writable: settings.writable, status: 'queued', createdAt: at, lastEventAt: at, result: '', source: settings.mode, threadId: previous?.threadId, category: input.category || '未分类' });
       }
     });
     this.publish(); void this.next();
@@ -98,6 +106,14 @@ export class Teamroom extends EventEmitter {
     if (this.runnerFactory) return this.runnerFactory(id);
     if (id === 'codex') return new CodexRun();
     if (id === 'grok') return new GrokRun();
+    if (id === 'claude') return new ClaudeRun();
+    if (id === 'opencode') return new OpenCodeRun();
+    if (id === 'cline') return new AcpRun(resolveCommand('cline', ['--acp', '--auto-approve', 'false']), 'Cline');
+    if (id === 'cursor') {
+      let command;
+      try { command = resolveCommand('cursor-agent', ['acp']); } catch { command = resolveCommand('agent', ['acp']); }
+      return new AcpRun(command, 'Cursor', async rpc => { await rpc.request('authenticate', { methodId: 'cursor_login' }); });
+    }
     throw new Error('此员工的真实执行适配器尚未接入。');
   }
   private announce(report: Report) { if (!this.closing) this.emit('notice', { source: report.source, title: report.kind === 'daily' ? 'Teamroom 团队日报' : 'Teamroom 工作汇报', body: report.text, reportId: report.id }); }
@@ -132,11 +148,15 @@ export class Teamroom extends EventEmitter {
         text('【演示交付】收到这项工作：' + task.prompt + '\n\n这是演示适配器的回复，没有调用真实模型、修改文件或运行测试。请在真实模式中 @Codex 执行项目任务。');
       } else {
         // Re-read predecessor after queueing: a prior task may only now have created its thread.
-        task.threadId ||= this.store.tasks().filter(t => t.id !== task.id && t.source === 'live' && t.workspace === task.workspace && t.agentId === task.agentId && t.threadId).at(-1)?.threadId;
+        task.threadId ||= this.store.tasks().filter(t => t.id !== task.id && t.source === 'live' && t.workspace === task.workspace && t.agentId === task.agentId && t.writable === task.writable && t.threadId).at(-1)?.threadId;
         const run = this.runner = this.makeRunner(task.agentId);
         const original = this.store.messageById(task.messageId)?.text || task.prompt;
         await run.run({ ...task, prompt: executionPrompt(task.agentId, original) + (task.discussionContext ? '\n老板确认的讨论结论：\n' + task.discussionContext : '') + DISCUSSION_INSTRUCTION }, { mode: 'live', workspace: task.workspace, writable: task.writable }, {
           text,
+          usage: value => {
+            if (!value || !Number.isFinite(value.inputTokens) || value.inputTokens < 0 || !Number.isFinite(value.outputTokens) || value.outputTokens < 0 || typeof value.source !== 'string') return;
+            this.update(task, { usage: { ...value, costUsd: Number.isFinite(value.costUsd) && value.costUsd! >= 0 ? value.costUsd : undefined, source: value.source.slice(0, 200), at: Date.now() } });
+          },
           activity: activity => { if (task.status !== 'cancelled' && !this.closing) this.update(task, { activity }); },
           thread: id => this.update(task, { threadId: id }),
           approval: (id, kind, description, answer) => {
@@ -185,5 +205,12 @@ export class Teamroom extends EventEmitter {
     this.update(task, { status: 'accepted' });
   }
   async quota() { this.quotaData = { data: await readCodexQuota(), updatedAt: Date.now(), source: 'Codex account/rateLimits/read' }; this.publish(); }
+  account(input: Account) {
+    const value = validateAccount(input), accounts = this.store.value<Account[]>('accounts', []);
+    if (accounts.some(a => a.id !== value.id && a.tools.some(t => value.tools.includes(t)))) throw new Error('员工已关联其他账户，请先解除原关联，避免重复累计余额。');
+    this.store.saveValue('accounts', [...accounts.filter(a => a.id !== value.id), value]); this.publish();
+  }
+  removeAccount(id: string) { if (typeof id !== 'string') throw new Error('账户 ID 无效。'); this.store.saveValue('accounts', this.store.value<Account[]>('accounts', []).filter(a => a.id !== id)); this.publish(); }
+  hasActiveWork() { return Boolean(this.active || this.discussions.busy || this.store.tasks().some(t => ['queued', 'running', 'waiting_approval'].includes(t.status)) || this.store.discussions().some(d => ['queued', 'running'].includes(d.status))); }
   close() { this.closing = true; this.abort?.abort(); this.runner?.close(); this.discussions.close(); }
 }

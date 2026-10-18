@@ -57,5 +57,6 @@ body{margin:0}
 #root .reporting-settings input[type=number],#root .reporting-settings input[type=time]{max-width:110px;padding:5px;font:inherit}
 #root button{cursor:pointer}
 #root button:disabled{cursor:default}
+#root .operations-table{overflow:auto}#root .operations-table table{border-collapse:collapse;width:100%;font-size:12px;text-align:left}#root .operations-table th,#root .operations-table td{padding:10px;border-bottom:1px solid var(--g-line)}#root .operations-table small{display:block;color:var(--g-soft);max-width:240px;overflow:hidden;text-overflow:ellipsis}#root .account-tools{display:flex;flex-wrap:wrap;gap:10px}#root .account-tools label{font-size:12px}#root .category-label{font-size:12px}#root select{padding:5px;border:1px solid var(--g-line);border-radius:6px;background:var(--g-bg);color:var(--g-text);font:inherit}#root .settings-panel+.settings-panel{margin-top:18px}
 @media(max-width:850px){#root .g-shell{grid-template-columns:128px minmax(0,1fr)}#root .g-members{display:none}}
 @media(max-width:550px){#root .g-window{height:auto;min-height:100vh;overflow:visible}#root .g-shell{height:auto;display:block}#root .g-feed{max-height:480px;min-height:180px}#root .g-nav{flex-direction:row}#root .g-titlebar{height:auto;padding-right:14px}#root .g-titlebar .mode-button{margin-left:0}#root .g-composer textarea{font-size:16px}}

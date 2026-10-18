@@ -20,13 +20,13 @@
 ## M2.3 · 本机发现与 Grok（实验性，当前批次）
 
 - [x] T32：Grok stdio 适配器；initialize/authenticate、session new/load、prompt 流式、审批拒绝、取消与未登录错误；4 项协议夹具测试。
-- [x] T33：本机命令发现与显式 @all；只有 Codex/Grok 有执行器，其他命令只显示已安装；显式不可用 @ 仍阻止整条发送；添加 UI 与测试。
+- [x] T33：本机命令发现与显式 @all；v0.1 只有 Codex/Grok 有执行器（v0.2 扩展见下）；显式不可用 @ 仍阻止整条发送；添加 UI 与测试。
 - [ ] T34：真实 Grok CLI/账户验证；记录版本、登录方式、极小只读任务与失败边界，完成前不得把 Grok 列为受支持适配器。
 
 ## M1 · 本地群聊基础
 
 - [x] T01：Electron/React/TypeScript 项目；桌面可启动，保留工作群样式。 [#1](https://github.com/frankxiaofei/agent-teamroom/issues/1)
-- [x] T02：带产品名牌的基础 6 位卡通员工；M2.3 增加 Grok 字标占位；@ 菜单和成员点击插入。 [#2](https://github.com/frankxiaofei/agent-teamroom/issues/2)
+- [x] T02：带产品名牌的基础 6 位卡通员工；v0.2 增加带名牌的 Grok SVG 卡通；@ 菜单和成员点击插入。 [#2](https://github.com/frankxiaofei/agent-teamroom/issues/2)
 - [x] T03：多人提及、去重、未知名称与整条发送预检查；无隐式广播。 [#3](https://github.com/frankxiaofei/agent-teamroom/issues/3)
 - [x] T04：SQLite 群消息/任务/设置；事务与消息 ID 幂等；演示/真实隔离。 [#4](https://github.com/frankxiaofei/agent-teamroom/issues/4)
 - [x] T05：自动测试、桌面 smoke、重启持久化；GitHub CI。 [#5](https://github.com/frankxiaofei/agent-teamroom/issues/5)
@@ -41,24 +41,28 @@
 
 ## M3 · Claude 与 OpenCode
 
-- [ ] T11：Claude Code CLI 流式适配器，续接、取消与权限请求。 [#11](https://github.com/frankxiaofei/agent-teamroom/issues/11)
-- [ ] T12：OpenCode 本地 Server 适配器，异步任务、事件与中止。 [#12](https://github.com/frankxiaofei/agent-teamroom/issues/12)
-- [ ] T13：两种适配器的实际任务、断线、失败、使用量去重测试。 [#13](https://github.com/frankxiaofei/agent-teamroom/issues/13)
+- [x] T11：Claude Code 官方 SDK 流式适配器，续接、取消、逐次权限请求与估算来源；源码/注入测试完成，真实账户验收归 T13。 [#11](https://github.com/frankxiaofei/agent-teamroom/issues/11)
+- [x] T12：OpenCode 改用官方 ACP 适配器，流式、续接、取消、配置隔离与最终权限预检；本机 1.19.3 极小只读请求通过。 [#12](https://github.com/frankxiaofei/agent-teamroom/issues/12)
+- [ ] T13：部分完成；协议失败/取消/续接/估算累计边界有测试，OpenCode 真实只读请求通过；Claude 本机需认证，真实任务与续接验收待登录。 [#13](https://github.com/frankxiaofei/agent-teamroom/issues/13)
 
 ## M4 · ACP 与 WorkBuddy
 
-- [ ] T14：Cursor ACP 初始化、版本协商、提问、权限、恢复与取消。 [#14](https://github.com/frankxiaofei/agent-teamroom/issues/14)
-- [ ] T15：Cline ACP 初始化、模型/提供方、权限、恢复与取消。 [#15](https://github.com/frankxiaofei/agent-teamroom/issues/15)
-- [ ] T16：WorkBuddy 官方接口能力调查与证据清单；只实现可验证接口。 [#16](https://github.com/frankxiaofei/agent-teamroom/issues/16)
+- [ ] T14：源码/协议测试完成（初始化、版本协商、提问、权限、恢复与取消）；本机 Agent CLI 缺失，真实验收待安装登录。 [#14](https://github.com/frankxiaofei/agent-teamroom/issues/14)
+- [ ] T15：源码/协议测试完成，强制 auto-approve=false；本机 CLI 握手需认证，真实任务验收待登录。 [#15](https://github.com/frankxiaofei/agent-teamroom/issues/15)
+- [x] T16：WorkBuddy 官方接口能力调查与证据清单完成；公开 CodeBuddy CLI ACP 路线见本日交付文档。无现有桌面会话接管承诺，执行适配待本机 CLI 与权限验证。 [#16](https://github.com/frankxiaofei/agent-teamroom/issues/16)
 
 ## M5 · 可日用与分发
 
-- [ ] T17：北京时间日报、跨午夜任务、执行/等待时长和验收去重。 [#17](https://github.com/frankxiaofei/agent-teamroom/issues/17)
-- [ ] T18：同类任务耗时中位数、样本量、失败与返工；不按 token 速度总排名。 [#18](https://github.com/frankxiaofei/agent-teamroom/issues/18)
-- [ ] T19：账户身份归并、额度来源与刷新时间、实际账单与估算区分。 [#19](https://github.com/frankxiaofei/agent-teamroom/issues/19)
+- [x] T17：北京时间日报、跨午夜任务、执行/等待时长和验收去重。 [#17](https://github.com/frankxiaofei/agent-teamroom/issues/17)
+- [x] T18：同类任务耗时中位数、样本量、失败与返工；不按 token 速度总排名。 [#18](https://github.com/frankxiaofei/agent-teamroom/issues/18)
+- [x] T19：人工账户别名和多工具关联去重、来源与更新时间、实际账单与估算区分；服务商实际账单未提供，明确显示未知。 [#19](https://github.com/frankxiaofei/agent-teamroom/issues/19)
 - [ ] T20：Windows 安装包、恢复/备份、升级迁移、包内清单与分发验证。 [#20](https://github.com/frankxiaofei/agent-teamroom/issues/20)
 
 ## M6 · X 推荐与社区反馈
 
 - [x] T21：真实截图、双语介绍与可复现演示，README 与能力表同步。 [#21](https://github.com/frankxiaofei/agent-teamroom/issues/21)
 - [ ] T22：按发布条件在 X 发布并读回链接；整理初批用户反馈到 issue。 [#22](https://github.com/frankxiaofei/agent-teamroom/issues/22)
+
+## 2026-10-18 收口
+
+源码/协议测试、真实账户验收和安装包验证不是同一个完成状态。本日实现、验证命令与外部前置条件见 [delivery-2026-10-18.md](delivery-2026-10-18.md)。T13/T14/T15/T34 保留真实验收缺口，T20 以安装/升级实测收口；T22 未发布。

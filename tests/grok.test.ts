@@ -15,11 +15,10 @@ test('grok stdio streams text and keeps the prompt out of the process arguments'
 });
 test('grok permission is explicit and unsupported requests are declined', async () => {
   let text = '', asked = false;
-  await new GrokRun(command).run({ ...task, prompt: 'permission' }, { mode: 'live', workspace: process.cwd(), writable: false }, hooks({ text: value => { text = value; }, approval: (_id, _kind, description, answer) => { assert.match(description, /echo fixture/); asked = true; answer(false); } }));
+  await new GrokRun(command).run({ ...task, prompt: 'permission', writable:true }, { mode: 'live', workspace: process.cwd(), writable: true }, hooks({ text: value => { text = value; }, approval: (_id, _kind, description, answer) => { assert.match(description, /echo fixture/); asked = true; answer(false); } }));
   assert.equal(text, 'fixture-grok-declined');
   assert.ok(asked);
-  await new GrokRun(command).run({ ...task, prompt: 'unsupported' }, { mode: 'live', workspace: process.cwd(), writable: false }, hooks({ text: value => { text = value; }, approval: () => assert.fail('unsupported') }));
-  assert.match(text, /没有文本输出/);
+  await assert.rejects(new GrokRun(command).run({ ...task, prompt: 'unsupported' }, { mode: 'live', workspace: process.cwd(), writable: false }, hooks({ approval: () => assert.fail('unsupported') })), /未返回/);
 });
 test('grok reports a missing login instead of guessing credentials', async () => {
   await assert.rejects(new GrokRun({ file: process.execPath, args: [fixture, 'unsigned'] }).run(task, { mode: 'live', workspace: process.cwd(), writable: false }, hooks()), /grok login/);

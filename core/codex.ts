@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { createInterface, type Interface } from 'node:readline';
 import type { Task, Settings } from './types.js';
 
-export interface Command { file: string; args: string[]; }
+export interface Command { file: string; args: string[]; env?: NodeJS.ProcessEnv; }
 export function codexCommand(): Command {
   if (process.platform !== 'win32') {
     execFileSync('which', ['codex'], { stdio: 'pipe', timeout: 5000 });
@@ -81,6 +81,7 @@ export class RpcClient {
 }
 
 export interface RunEvents {
+  usage?(value: import('./types.js').Usage): void;
   text(text: string): void;
   activity(text: string): void;
   thread(id: string): void;

@@ -65,3 +65,11 @@ Grok 适配器沿用 stdio JSON-RPC 边界：initialize/authenticate、session/n
 ## 证据界限
 
 协议夹具测试证明客户端处理消息、审批与终态；真实极小请求证明当前账户和模型可用。两者都不证明所有工具任务、订阅账户或平台完全兼容。额度接口与费用估算不能作为真实账单或欠费依据。
+
+## v0.2 执行与数据扩展
+
+Runner factory 增加 ClaudeRun（官方 SDK）、OpenCodeRun（配置隔离与权限预检包裹 ACP）、Cursor/Cline ACP；Grok 复用 ACP 传输。会话历史回放不写入新任务成果；切换写入授权不复用相反权限的会话，发送与执行两处选线程均检查。OpenCode 只读显式 plan、写入显式 build，使用最终有序权限规则验证，未知行为失败关闭。它允许工具自己精确的 tool-output 读取例外，不声称操作系统级沙箱。
+
+analytics 按状态事件累计执行/等待耗时并按北京时间自然日计数。效率按员工/分类/项目分组，只把当前已交付且事件完整的任务纳入；未分类没有比较中位数。Claude 会话累计估算单独带来源，禁止逐任务相加当作账单。
+
+新增窄 IPC account/removeAccount/backup/restore；没有 renderer 文件路径读写接口。账户只存人工别名与归属。在线备份使用 SQLite backup；恢复先验证 schema、字段、时间、版本与完整性，拒绝 trigger/view，保存回滚副本后替换，失败回滚；恢复清除写入授权并设演示模式。当前 schema user_version=2，旧数据库加表迁移，较新版本拒绝打开。

@@ -1,0 +1,33 @@
+import { _electron as electron } from 'playwright';
+import { mkdtempSync, existsSync, mkdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import assert from 'node:assert/strict';
+const executablePath = resolve(process.argv[2] || 'release/win-unpacked/Teamroom.exe');
+assert.ok(existsSync(executablePath), 'Build the Windows package first');
+mkdirSync('.smoke-data',{recursive:true});
+const data = process.env.TEAMROOM_SMOKE_DATA_DIR || mkdtempSync(resolve('.smoke-data/package-'));
+const env = { ...process.env, TEAMROOM_DATA_DIR: data }; delete env.ELECTRON_RUN_AS_NODE;
+const args = process.env.TEAMROOM_SMOKE_NO_SANDBOX === '1' ? ['--no-sandbox', '--disable-gpu'] : [];
+let app;
+try {
+  app = await electron.launch({ executablePath, args, env }); const page = await app.firstWindow(), errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.getByRole('heading', { name: 'Agent 工作群', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  await page.getByRole('textbox', { name: '群消息', exact: true }).fill('@Codex 验证已安装程序的派发');
+  await page.getByRole('button', { name: '发送到群里', exact: true }).click();
+  await page.waitForFunction(async () => (await window.teamroom.snapshot()).tasks.some(t => t.prompt === '验证已安装程序的派发' && t.status === 'awaiting_review'));
+  await page.getByRole('button', { name: '账户与额度', exact: true }).click();
+  await page.getByRole('textbox', { name: '账户别名', exact: true }).fill('Package smoke account');
+  await page.locator('.account-tools').getByText('Codex', { exact: true }).click();
+  await page.getByRole('button', { name: '保存账户登记', exact: true }).click();
+  await page.waitForFunction(async () => (await window.teamroom.snapshot()).accounts.length === 1);
+  await page.getByRole('button', { name: '每日汇报', exact: true }).click(); await page.getByRole('heading', { name: '工作效率', exact: true }).waitFor();
+  mkdirSync('docs/images', { recursive: true }); await page.screenshot({ path: 'docs/images/teamroom-efficiency.png' });
+  assert.deepEqual(errors, []);
+  const version = await app.evaluate(({ app }) => app.getVersion()); assert.equal(version, '0.2.0');
+  await app.close(); app = undefined;
+  app = await electron.launch({ executablePath, args, env }); const reopened = await app.firstWindow(); await reopened.getByRole('heading', { name: 'Agent 工作群', exact: true }).waitFor();
+  assert.equal((await reopened.evaluate(() => window.teamroom.snapshot())).accounts[0].label, 'Package smoke account');
+  console.log(JSON.stringify({ packaged: true, version, dispatch: true, accounts: true, analytics: true, persistence: true, credentialsRead: false }));
+} finally { await app?.close(); }

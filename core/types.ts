@@ -4,7 +4,7 @@ export type TaskStatus = 'queued' | 'running' | 'waiting_approval' | 'waiting_di
 export interface Agent { id: AgentId; name: string; nick: string; job: string; avatar: number; }
 export interface Settings { mode: Mode; workspace: string; writable: boolean; }
 export interface Message { id: string; agentId: AgentId | null; role: 'user' | 'agent' | 'system'; text: string; at: number; source: Mode; taskId?: string; reportId?: string; discussionId?: string; }
-export interface Task { id: string; messageId: string; agentId: AgentId; prompt: string; workspace: string; writable: boolean; status: TaskStatus; createdAt: number; startedAt?: number; finishedAt?: number; lastEventAt: number; activity?: string; result: string; source: Mode; threadId?: string; discussionContext?: string; }
+export interface Task { id: string; messageId: string; agentId: AgentId; prompt: string; workspace: string; writable: boolean; status: TaskStatus; createdAt: number; startedAt?: number; finishedAt?: number; lastEventAt: number; activity?: string; result: string; source: Mode; threadId?: string; discussionContext?: string; category?: string; usage?: Usage; }
 export interface Approval { id: string; taskId: string; agentId: AgentId; kind: string; description: string; }
 export interface Availability { agentId: AgentId; available: boolean; reason: string; }
 export interface Quota { data: unknown; updatedAt: number; source: string; }
@@ -15,8 +15,9 @@ export interface Report { id: string; source: Mode; kind: 'progress' | 'daily' |
 export interface DiscussionPost { id: string; agentId: AgentId | null; text: string; at: number; round: number; kind: 'reply' | 'summary' | 'boss' | 'error'; }
 export interface Discussion { id: string; source: Mode; taskId?: string; initiator: AgentId | null; question: string; participants: AgentId[]; workspace: string; status: 'queued' | 'running' | 'needs_decision' | 'resolved'; round: number; posts: DiscussionPost[]; createdAt: number; updatedAt: number; decision?: string; }
 export interface DiscussionInput { id: string; question: string; participants: AgentId[]; taskId?: string; }
-export interface Snapshot { settings: Settings; messages: Message[]; tasks: Task[]; approvals: Approval[]; availability: Availability[]; quota?: Quota; reporting: Reporting; reports: Report[]; discussions: Discussion[]; }
-export interface SendInput { id: string; text: string; }
+export interface Snapshot { settings: Settings; messages: Message[]; tasks: Task[]; approvals: Approval[]; availability: Availability[]; quota?: Quota; reporting: Reporting; reports: Report[]; discussions: Discussion[]; analytics?: import('./analytics.js').Analytics; accounts?: import('./accounts.js').Account[]; }
+export interface SendInput { id: string; text: string; category?: string; }
+export interface Usage { inputTokens: number; outputTokens: number; costUsd?: number; cumulative?: boolean; source: string; at: number; }
 export interface Bridge {
   snapshot(): Promise<Snapshot>;
   send(input: SendInput): Promise<void>;
@@ -26,6 +27,10 @@ export interface Bridge {
   accept(taskId: string): Promise<void>;
   approve(id: string, allow: boolean): Promise<void>;
   quota(): Promise<void>;
+  account(value: import('./accounts.js').Account): Promise<void>;
+  removeAccount(id: string): Promise<void>;
+  backup(): Promise<string | null>;
+  restore(): Promise<boolean>;
   reporting(value: Reporting): Promise<void>;
   report(): Promise<void>;
   discuss(input: DiscussionInput): Promise<void>;

@@ -13,4 +13,5 @@ dist-main/
 test-results/
 release/
 work/
+.build-temp/
 *.log

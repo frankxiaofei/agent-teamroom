@@ -1,6 +1,6 @@
 # 卡通员工素材
 
-`public/avatars.webp` 是本项目界面使用的六宫格图集，由本次设计会话通过内置 ImageGen 生成并修改，保留了六位原创卡通角色与产品名牌。不是官方品牌吉祥物。Grok 当前使用 CSS 字标占位，没有加入图集，不冒充已生成的官方形象。
+`public/avatars.webp` 是本项目界面使用的六宫格图集，由本次设计会话通过内置 ImageGen 生成并修改，保留了六位原创卡通角色与产品名牌。不是官方品牌吉祥物。Grok 使用独立的原创 SVG 石头机器人（`public/grok.svg`），带 Grok 名牌；没有修改原图集，也不是官方吉祥物。
 
 形象顺序：珊瑚星星 Claude Code、白色机器人 Codex、绿色青蛙 OpenCode、紫色猫 Cursor、蓝色猫头鹰 Cline、水豚 WorkBuddy。
 

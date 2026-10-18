@@ -4,12 +4,12 @@ import type { AgentId } from './types.js';
 
 export interface ToolInstall { agentId: AgentId; installed: boolean; executable: boolean; detail: string; }
 export type CommandProbe = (name: string) => boolean;
-const runners = new Set<AgentId>(['codex', 'grok']);
+const runners = new Set<AgentId>(['codex', 'grok', 'claude', 'opencode', 'cursor', 'cline']);
 const commands: Record<AgentId, { agent: string[]; editor?: string[] }> = {
   claude: { agent: ['claude'] },
   codex: { agent: ['codex'] },
   opencode: { agent: ['opencode'] },
-  cursor: { agent: ['cursor-agent'], editor: ['cursor'] },
+  cursor: { agent: ['cursor-agent', 'agent'], editor: ['cursor'] },
   cline: { agent: ['cline'] },
   workbuddy: { agent: ['workbuddy'] },
   grok: { agent: ['grok'] },

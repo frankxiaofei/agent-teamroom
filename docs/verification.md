@@ -37,3 +37,16 @@ GitHub CI 会独立验证 Ubuntu/Windows 的测试、构建和桌面烟测，具
 - `@all`：自动测试覆盖“只发给当前可用员工、显式不可用 @ 仍阻止整条发送”；演示模式由 LocalStorage bridge 验证。没有把测试夹具说成真实多工具验证。
 - 合并后代码在 main 的工作树中运行；本轮 Node 24.19.0、Electron 44.8.0。历史记录中的 Node 22.16.0 是前一时点。
 - 真实项目文件修改、真实 Codex 文件审批、Grok 真实接入、Windows 安装包和系统通知实际投递仍不在本轮验证范围内。
+## 2026-10-18 v0.2 开发与本机验证
+
+- `npm run verify`：60 项测试、TypeScript 与 Vite 构建通过。新增 SDK/ACP 权限与终态、历史回放隔离、跨权限线程隔离、统计等待时长、续做样本、账户去重、损坏备份/schema/时间/身份拒绝、恢复中途回滚和旧库迁移用例。
+- `npm run smoke:desktop`：通过（受限主机使用 `TEAMROOM_SMOKE_NO_SANDBOX=1` 和工作区数据目录）。实际 Electron 覆盖分类、账户零余额与共享关联、效率页、导出、取消恢复、确认恢复、群讨论、托盘与重启；真实执行使用夹具，协议验证不冒充真实任务。
+- `npm audit --json`：运行时与开发依赖 0 已知漏洞。electron-builder 固定 26.15.3，并将 global-agent 覆盖为 4.1.3，避免旧日志依赖公告；打包构建实测通过。
+- `node scripts/smoke-codex.mjs --inference`：账户额度端点及真实 `TEAMROOM_SMOKE_OK` 通过；连接重试后完成。
+- `node scripts/smoke-adapters.mjs --inference --opencode`：OpenCode 1.19.3 真实返回 `TEAMROOM_OK`，先验证最终 plan 权限，不执行文件工具。
+- `node scripts/smoke-discussion.mjs --inference --multi`：Codex + OpenCode 真实回复、建议总结及老板结论通过；未创建执行任务，写入保持关闭。
+- Claude Code：官方 SDK 真实极小请求返回认证要求；Cline/Grok CLI 握手或新会话需认证；Cursor Agent CLI 未发现。未声称这些工具完成真实验收。Grok 当前本机版本 1.0.62。
+- `npm run package:win`：生成 NSIS 安装器及 portable EXE。受限主机首次 NSIS uninstaller 构建失败，改用工作区 `TEMP/TMP` 后构建通过。Authenticode 检查为 `NotSigned`；不是签名稳定版。
+- `npm run smoke:package`：最终 `release/win-unpacked/Teamroom.exe` 实际运行通过，验证群聊、账户、统计、版本及重启持久化；首次系统临时目录锁失败，使用工作区隔离数据目录后通过。
+- ASAR 检查：2327 项、8 个关键模块/素材入口齐全、未发现 `.env`、数据库、工作记录或测试缓存。未将用户登录凭据打入包。
+- 自解压 portable 与 NSIS 安装/升级不能仅由 unpacked smoke 代替；本机静默安装的最终结果另列，未通过前 T20 保留验收缺口。系统通知真实投递、签名和自动更新不在本次通过范围内。

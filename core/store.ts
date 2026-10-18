@@ -1,13 +1,16 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { DatabaseSync, backup } from 'node:sqlite';
+import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { Discussion, Message, Report, Settings, Task, TaskEvent, Mode } from './types.js';
 
 export class Store {
   private db: DatabaseSync;
+  closed = false;
   constructor(file: string) {
     if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
     this.db = new DatabaseSync(file);
+    try {
+    if ((this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version > 2) throw new Error('数据库版本高于当前程序，请使用更新的 Teamroom。');
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
       CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), json TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, json TEXT NOT NULL, at INTEGER NOT NULL);
@@ -18,12 +21,14 @@ export class Store {
       CREATE TABLE IF NOT EXISTS task_events (sequence INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, source TEXT NOT NULL, status TEXT NOT NULL, at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS messages_at ON messages(at);
       CREATE INDEX IF NOT EXISTS tasks_at ON tasks(created_at);`);
+    this.db.exec('PRAGMA user_version=2');
     for (const task of this.tasks()) {
       if (['queued', 'running', 'waiting_approval'].includes(task.status)) { const now = Date.now(); this.task({ ...task, status: 'interrupted', finishedAt: now, lastEventAt: now, result: '应用重启，执行状态未恢复。请检查原工具后重新发送；不会自动重派。' }); }
     }
     for (const discussion of this.discussions()) {
       if (['queued', 'running'].includes(discussion.status)) this.discussion({ ...discussion, status: 'needs_decision', updatedAt: Date.now(), posts: [...discussion.posts, { id: crypto.randomUUID(), agentId: null, kind: 'error', round: discussion.round, at: Date.now(), text: '应用重启，讨论已暂停。请检查已有回复，明确继续下一轮或提交结论；不会自动重放。' }] });
     }
+    } catch (error) { this.db.close(); this.closed = true; throw error; }
   }
   settings(): Settings {
     const row = this.db.prepare('SELECT json FROM settings WHERE id=1').get() as { json: string } | undefined;
@@ -56,5 +61,6 @@ export class Store {
     this.db.exec('BEGIN IMMEDIATE');
     try { fn(); this.db.exec('COMMIT'); } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
-  close() { this.db.close(); }
+  async backup(file: string) { if (existsSync(file)) throw new Error('备份文件已存在，请选择新文件名。'); await backup(this.db, file); }
+  close() { if (this.closed) return; this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); this.db.close(); this.closed = true; }
 }

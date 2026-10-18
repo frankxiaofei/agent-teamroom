@@ -35,6 +35,10 @@ export function browserDemo(): Bridge {
     async accept(id) { const task = value.tasks.find(t => t.id === id); if (!task || task.status !== 'awaiting_review') throw new Error('任务当前不可验收。'); task.status = 'accepted'; publish(); },
     async approve() { throw new Error('浏览器演示没有真实审批请求。'); },
     async quota() { throw new Error('浏览器演示无法查询账户额度。'); },
+    async account() { throw new Error('账户登记请使用桌面版，浏览器演示不保存账户信息。'); },
+    async removeAccount() { throw new Error('账户登记请使用桌面版。'); },
+    async backup() { throw new Error('SQLite 备份请使用桌面版。'); },
+    async restore() { throw new Error('SQLite 恢复请使用桌面版。'); },
     async reporting(settings) { value.reporting = settings; publish(); },
     async report() { const now = Date.now(), id = crypto.randomUUID(); const text = '【浏览器演示】即时工作汇报\n交付 ' + value.tasks.filter(t => t.status === 'awaiting_review').length + ' 项；验收 ' + value.tasks.filter(t => t.status === 'accepted').length + ' 项。\n依据浏览器演示记录，完整定时汇报请使用桌面版。'; value.reports.push({ id, kind: 'manual', source: 'demo', from: now, to: now, text, taskIds: value.tasks.map(t => t.id) }); value.messages.push({ id: 'report-' + id, role: 'system', agentId: null, source: 'demo', at: now, text, reportId: id }); publish(); },
     async discuss(input) {

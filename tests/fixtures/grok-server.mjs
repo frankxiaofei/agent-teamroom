@@ -11,10 +11,11 @@ createInterface({ input: process.stdin }).on('line', line => {
     send({ id: promptId, result: { stopReason: 'end_turn' } });
     return;
   }
-  if (message.method === 'initialize') send({ id: message.id, result: { authMethods: unsigned ? [] : [{ id: 'cached_token' }] } });
+  if (message.method === 'initialize') send({ id: message.id, result: { protocolVersion:1, agentCapabilities:{loadSession:true}, authMethods: unsigned ? [] : [{ id: 'cached_token' }] } });
   if (message.method === 'authenticate') send({ id: message.id, result: {} });
   if (message.method === 'session/load') send({ id: message.id, error: { message: 'missing session' } });
-  if (message.method === 'session/new') send({ id: message.id, result: { sessionId: 'grok-session' } });
+  if (message.method === 'session/new') send({ id: message.id, result: { sessionId: 'grok-session', modes:{availableModes:[{id:'plan',name:'Plan'}]} } });
+  if (message.method === 'session/set_mode') send({id:message.id,result:{}});
   if (message.method === 'session/prompt') {
     promptId = message.id;
     const text = message.params.prompt[0].text;
