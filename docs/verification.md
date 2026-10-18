@@ -50,3 +50,12 @@ GitHub CI 会独立验证 Ubuntu/Windows 的测试、构建和桌面烟测，具
 - `npm run smoke:package`：最终 `release/win-unpacked/Teamroom.exe` 实际运行通过，验证群聊、账户、统计、版本及重启持久化；首次系统临时目录锁失败，使用工作区隔离数据目录后通过。
 - ASAR 检查：2327 项、8 个关键模块/素材入口齐全、未发现 `.env`、数据库、工作记录或测试缓存。未将用户登录凭据打入包。
 - 自解压 portable 与 NSIS 安装/升级不能仅由 unpacked smoke 代替；本机静默安装的最终结果另列，未通过前 T20 保留验收缺口。系统通知真实投递、签名和自动更新不在本次通过范围内。
+
+### Windows 分发收口
+
+- NSIS：直接执行 `/S /currentuser /D=<workspace test directory>` 返回 0，实际安装目录中的程序通过 `smoke:package`。先前未指定 currentuser 的 PowerShell 进程树等待未返回，已终止该测试等待，没有当作安装成功。
+- 覆盖安装：同版本再次安装返回 0；重新打开同一隔离数据目录，账户别名与任务记录均保留。该结果是同版本重装，不冒充跨版本程序升级；旧 schema 数据迁移另由测试覆盖。
+- Portable：NSIS 不转发调试 stdout，直接 Playwright Electron 连接不适用；使用 `scripts/smoke-portable.mjs` 连接实际子程序的本地 CDP，验证自解压、renderer bridge 和群聊派发通过。
+- 本批为未签名 Windows x64 预览，未验证 macOS/Linux 分发、跨版本安装升级、默认系统通知真实投递或自动更新。
+- Setup SHA256：`b1f08063f9cbb11954691b6ac3e4b32f033378eb6906df781759f53d841b8287`。
+- Portable SHA256：`0cde3967d3bc32b2bb927ab69dd4790d32cdcdc9bff9a32f3ccccd2ffa9ffbc7`。

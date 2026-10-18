@@ -56,7 +56,7 @@
 - [x] T17：北京时间日报、跨午夜任务、执行/等待时长和验收去重。 [#17](https://github.com/frankxiaofei/agent-teamroom/issues/17)
 - [x] T18：同类任务耗时中位数、样本量、失败与返工；不按 token 速度总排名。 [#18](https://github.com/frankxiaofei/agent-teamroom/issues/18)
 - [x] T19：人工账户别名和多工具关联去重、来源与更新时间、实际账单与估算区分；服务商实际账单未提供，明确显示未知。 [#19](https://github.com/frankxiaofei/agent-teamroom/issues/19)
-- [ ] T20：Windows 安装包、恢复/备份、升级迁移、包内清单与分发验证。 [#20](https://github.com/frankxiaofei/agent-teamroom/issues/20)
+- [x] T20：Windows x64 未签名预览安装/便携包、恢复/备份、旧库迁移、包内清单、安装与同版本重装数据保留验证完成；跨版本程序升级、签名/自动更新另行验收。 [#20](https://github.com/frankxiaofei/agent-teamroom/issues/20)
 
 ## M6 · X 推荐与社区反馈
 
@@ -65,4 +65,4 @@
 
 ## 2026-10-18 收口
 
-源码/协议测试、真实账户验收和安装包验证不是同一个完成状态。本日实现、验证命令与外部前置条件见 [delivery-2026-10-18.md](delivery-2026-10-18.md)。T13/T14/T15/T34 保留真实验收缺口，T20 以安装/升级实测收口；T22 未发布。
+源码/协议测试、真实账户验收和安装包验证不是同一个完成状态。本日实现、验证命令与外部前置条件见 [delivery-2026-10-18.md](delivery-2026-10-18.md)。T13/T14/T15/T34 保留真实验收缺口，T20 以安装/同版本重装、旧库迁移和恢复实测收口；T22 未发布。
